@@ -1,3 +1,22 @@
+/**
+ * @file app.ts
+ * @module api
+ *
+ * Fastify application factory for KWASU AMS API.
+ *
+ * Assembles the full application by registering plugins, module routes, and
+ * the global error handler in the correct order:
+ *
+ * 1. Security plugins: Helmet → CORS → Rate limiter
+ * 2. Documentation: Swagger (dev only)
+ * 3. System routes: GET /health
+ * 4. Module routes: /auth/*, /admin/*
+ * 5. Global error handler
+ *
+ * The factory pattern (rather than a module-level singleton) makes the app
+ * fully testable — each test can create a fresh instance via `createApp()`.
+ */
+
 import Fastify from 'fastify';
 import { type FastifyInstance } from 'fastify';
 import { prisma } from './lib/prisma.js';
@@ -7,8 +26,19 @@ import corsPlugin from './plugins/cors.js';
 import helmetPlugin from './plugins/helmet.js';
 import rateLimiterPlugin from './plugins/rate-limiter.js';
 import swaggerPlugin from './plugins/swagger.js';
+import multipartPlugin from './plugins/multipart.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { registerAuthRoutes } from './modules/auth/auth.routes.js';
+import { registerAdminRoutes } from './modules/admin/admin.routes.js';
 
+/**
+ * Creates and configures the Fastify application instance.
+ *
+ * Registers all plugins, routes, and the global error handler. Does **not**
+ * bind to a port — call `app.listen()` in `index.ts` after this returns.
+ *
+ * @returns A fully configured Fastify instance ready to listen or inject.
+ */
 export async function createApp(): Promise<FastifyInstance> {
   const isDev = env.NODE_ENV === 'development';
 
@@ -29,6 +59,7 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(corsPlugin);
   await app.register(rateLimiterPlugin);
   await app.register(swaggerPlugin);
+  await app.register(multipartPlugin);
 
   // ── Health check (public — no auth required) ─────────────────────────────
   app.get(
@@ -87,6 +118,10 @@ export async function createApp(): Promise<FastifyInstance> {
       });
     },
   );
+
+  // ── Module routes ─────────────────────────────────────────────────────────
+  await app.register(registerAuthRoutes);
+  await app.register(registerAdminRoutes);
 
   // ── Global error handler ──────────────────────────────────────────────────
   app.setErrorHandler(errorHandler);
