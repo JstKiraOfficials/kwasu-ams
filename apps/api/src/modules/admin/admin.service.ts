@@ -21,6 +21,7 @@
  */
 
 import { randomBytes } from 'crypto';
+import { Buffer } from 'node:buffer';
 import { type AuditAction, Prisma } from '@prisma/client';
 import { validateMatricNumber, validateStaffId, normaliseMatricNumber } from '@kwasu-ams/utils';
 import { type CreateUserInput, type IUserPublic, Role } from '@kwasu-ams/types';

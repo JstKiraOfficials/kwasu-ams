@@ -9,6 +9,7 @@
  */
 
 import { type FastifyReply, type FastifyRequest } from 'fastify';
+import { Buffer } from 'node:buffer';
 import { CreateUserSchema } from './admin.schema.js';
 import * as adminService from './admin.service.js';
 
