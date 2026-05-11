@@ -13,7 +13,10 @@ export default fp(async function swaggerPlugin(app: FastifyInstance): Promise<vo
         description: 'Kwara State University Attendance Management System REST API',
         version: '1.0.0',
       },
-      servers: [{ url: env.API_BASE_URL, description: 'Current server' }],
+      servers: [
+        { url: 'http://127.0.0.1:3001', description: 'Local development' },
+        { url: 'https://api.kwasu.edu.ng', description: 'Production' },
+      ],
       components: {
         securitySchemes: {
           bearerAuth: {
