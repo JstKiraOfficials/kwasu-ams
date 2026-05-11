@@ -7,6 +7,7 @@ import corsPlugin from './plugins/cors.js';
 import helmetPlugin from './plugins/helmet.js';
 import rateLimiterPlugin from './plugins/rate-limiter.js';
 import swaggerPlugin from './plugins/swagger.js';
+import { errorHandler } from './middleware/error-handler.js';
 
 export async function createApp(): Promise<FastifyInstance> {
   const isDev = env.NODE_ENV === 'development';
@@ -87,17 +88,8 @@ export async function createApp(): Promise<FastifyInstance> {
     },
   );
 
-  // ── Global error handler (placeholder — Phase 09 implements fully) ────────
-  app.setErrorHandler((error, _request, reply) => {
-    app.log.error(error);
-    const fastifyError = error as { statusCode?: number; message: string };
-    const statusCode = fastifyError.statusCode ?? 500;
-    void reply.status(statusCode).send({
-      statusCode,
-      error: 'INTERNAL_SERVER_ERROR',
-      message: fastifyError.message,
-    });
-  });
+  // ── Global error handler ──────────────────────────────────────────────────
+  app.setErrorHandler(errorHandler);
 
   return app;
 }
