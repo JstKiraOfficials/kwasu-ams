@@ -1,9 +1,5 @@
 import { z } from 'zod';
-
-// MATRIC_NUMBER_REGEX is defined in packages/utils/src/constants/identity.ts (Phase 07).
-// Imported here once Phase 07 is implemented.
-// Placeholder regex matches the same pattern for build compatibility.
-const MATRIC_NUMBER_REGEX = /^\d{2}[dD]?\/\d{1,2}[A-Za-z]{1,3}\/\d{3,5}$/;
+import { MATRIC_NUMBER_REGEX } from '@kwasu-ams/utils';
 
 const VALID_LEVELS = [100, 200, 300, 400, 500, 600] as const;
 
