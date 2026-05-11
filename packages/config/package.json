@@ -1,5 +1,6 @@
 {
   "name": "@kwasu-ams/config",
-  "version": "0.0.0",
-  "private": true
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared TypeScript, ESLint, and Prettier configuration presets for KWASU AMS"
 }

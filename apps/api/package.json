@@ -1,5 +1,12 @@
 {
   "name": "@kwasu-ams/api",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@kwasu-ams/types": "workspace:*",
+    "@kwasu-ams/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@kwasu-ams/config": "workspace:*"
+  }
 }
