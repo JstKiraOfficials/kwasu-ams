@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts",
+    "dev": "node --env-file=.env --watch --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts",
     "build": "tsc",
     "start": "node dist/src/index.js",
     "type-check": "tsc --noEmit",
