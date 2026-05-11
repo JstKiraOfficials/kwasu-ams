@@ -1,2 +1,24 @@
-// Model interfaces are implemented in Phase 06.
-export {};
+export * from './academic-session.js';
+export * from './anomaly-flag.js';
+export * from './attendance-record.js';
+export * from './audit-log.js';
+export * from './course-enrollment.js';
+export * from './course-section.js';
+export * from './course-session.js';
+export * from './course.js';
+export * from './department.js';
+export * from './device-binding.js';
+export * from './exam-eligibility.js';
+export * from './excuse-letter.js';
+export * from './faculty.js';
+export * from './lecturer.js';
+export * from './manual-override.js';
+export * from './notification.js';
+export * from './programme.js';
+export * from './semester.js';
+export * from './student.js';
+export * from './support-ticket.js';
+export * from './timetable-entry.js';
+export * from './university.js';
+export * from './user.js';
+export * from './venue.js';

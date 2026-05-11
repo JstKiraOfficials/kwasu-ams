@@ -1,0 +1,12 @@
+export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ACADEMIC_AFFAIRS = 'ACADEMIC_AFFAIRS',
+  VICE_CHANCELLOR = 'VICE_CHANCELLOR',
+  DEAN = 'DEAN',
+  HOD = 'HOD',
+  EXAM_OFFICER = 'EXAM_OFFICER',
+  LECTURER = 'LECTURER',
+  STUDENT = 'STUDENT',
+}
+
+export const ROLES: Role[] = Object.values(Role);

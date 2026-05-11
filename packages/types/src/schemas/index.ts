@@ -1,2 +1,16 @@
-// Zod schemas are implemented in Phase 06.
-export {};
+export * from './attendance.schema.js';
+export * from './auth.schema.js';
+export * from './course.schema.js';
+export * from './device.schema.js';
+export * from './eligibility.schema.js';
+export * from './excuse.schema.js';
+export * from './lecturer.schema.js';
+export * from './notification.schema.js';
+export * from './report.schema.js';
+export * from './session.schema.js';
+export * from './student.schema.js';
+export * from './support.schema.js';
+export * from './timetable.schema.js';
+export * from './user.schema.js';
+export * from './venue.schema.js';
+export * from './webhook.schema.js';
