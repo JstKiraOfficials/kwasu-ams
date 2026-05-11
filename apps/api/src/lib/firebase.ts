@@ -1,3 +1,16 @@
+/**
+ * @file firebase.ts
+ * @module lib
+ *
+ * Firebase Admin SDK singleton initialisation for KWASU AMS.
+ *
+ * Initialises the Firebase app once using service account credentials from
+ * `config/firebase.ts`. Guards against double-initialisation during hot reload.
+ *
+ * Exports the FCM messaging instance used by the push notification service
+ * (Phase 25).
+ */
+
 import admin from 'firebase-admin';
 import type { Messaging } from 'firebase-admin/messaging';
 import { firebaseConfig } from '../config/firebase.js';

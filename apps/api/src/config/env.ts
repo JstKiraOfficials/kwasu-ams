@@ -1,6 +1,29 @@
+/**
+ * @file env.ts
+ * @module config
+ *
+ * Type-safe environment variable validation using `@t3-oss/env-core`.
+ *
+ * All environment variables used anywhere in the API are declared and validated
+ * here. If any required variable is missing or fails validation, the process
+ * exits immediately with a descriptive error — preventing the server from
+ * starting in a misconfigured state.
+ *
+ * Variables are grouped by service: Server, Database, Redis, JWT, TOTP,
+ * AWS S3, Firebase, SMS, and Sentry.
+ *
+ * Usage: `import { env } from '../config/env.js'` — never use `process.env` directly.
+ */
+
 import { createEnv } from '@t3-oss/env-core';
 import { z } from 'zod';
 
+/**
+ * Validated, type-safe environment configuration object.
+ *
+ * Validated at module load time — any missing or invalid variable causes an
+ * immediate process exit with a descriptive error message.
+ */
 export const env = createEnv({
   server: {
     // Server
