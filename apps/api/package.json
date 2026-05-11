@@ -4,9 +4,11 @@
   "private": true,
   "dependencies": {
     "@kwasu-ams/types": "workspace:*",
-    "@kwasu-ams/utils": "workspace:*"
+    "@kwasu-ams/utils": "workspace:*",
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
-    "@kwasu-ams/config": "workspace:*"
+    "@kwasu-ams/config": "workspace:*",
+    "prisma": "^6.19.3"
   }
 }

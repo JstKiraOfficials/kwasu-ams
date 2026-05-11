@@ -1,0 +1,300 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DATABASE_DIRECT_URL")
+  extensions = [pgcrypto]
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum Role {
+  SUPER_ADMIN
+  ACADEMIC_AFFAIRS
+  VICE_CHANCELLOR
+  DEAN
+  HOD
+  EXAM_OFFICER
+  LECTURER
+  STUDENT
+}
+
+enum DeviceStatus {
+  ACTIVE
+  REVOKED
+  PENDING_APPROVAL
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  TOTP_ENROLLED
+  TOTP_RESET
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  ATTENDANCE_RECORDED
+  ATTENDANCE_OVERRIDDEN
+  EXCUSE_SUBMITTED
+  EXCUSE_APPROVED
+  EXCUSE_REJECTED
+  EXCUSE_APPEALED
+  HOD_EXCUSE_APPROVED
+  HOD_EXCUSE_REJECTED
+  ELIGIBILITY_COMPUTED
+  ELIGIBILITY_OVERRIDDEN
+  SESSION_CREATED
+  SESSION_OPENED
+  SESSION_CLOSED
+  SESSION_LOCKED
+  DEVICE_REGISTERED
+  DEVICE_REVOKED
+  BULK_IMPORT_STARTED
+  BULK_IMPORT_COMPLETED
+  REPORT_GENERATED
+  WEBHOOK_FIRED
+  SYSTEM_SETTING_CHANGED
+  DATA_EXPORT_REQUESTED
+}
+
+enum AnomalyType {
+  GPS_PRECISION_SPOOFING
+  GPS_VELOCITY_SPOOFING
+  MOCK_LOCATION_DETECTED
+  OUTSIDE_NIGERIA_BOUNDS
+  CONCURRENT_SESSION_CONFLICT
+  BOUNDARY_CLUSTERING
+  LAST_MINUTE_PATTERN
+  CLUSTER_IDENTICAL_GPS // Timestamp-based proxy — GPS is never stored (NDPA compliance)
+  REPEATED_DAY_PATTERN
+  HOD_AWARENESS_FLAG
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketCategory {
+  ATTENDANCE_DISPUTE
+  ACCOUNT_ACCESS
+  TECHNICAL_ISSUE
+  EXCUSE_QUERY
+  ELIGIBILITY_QUERY
+  OTHER
+}
+
+// =============================================================================
+// Models
+// =============================================================================
+
+/// Central identity model. Every person in the system has exactly one User record.
+model User {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier         String    @unique // Matric number or Staff ID — normalised to uppercase
+  fullName           String
+  email              String    @unique
+  phone              String
+  role               Role
+  scopeId            String?   @db.Uuid // facultyId, departmentId, or null for SUPER_ADMIN/VC
+  passwordHash       String // Argon2id hash
+  mustChangePassword Boolean   @default(true)
+  totpSecret         String? // AES-256 encrypted TOTP secret; null until TOTP enrolled
+  totpEnrolled       Boolean   @default(false)
+  totpBackupCodes    String[] // SHA-256 hashed backup codes; shown once then stored hashed
+  failedAttempts     Int       @default(0)
+  lockoutUntil       DateTime?
+  languagePreference String    @default("en") // "en" or "yo"
+  fcmToken           String? // Firebase Cloud Messaging token for push notifications
+  isActive           Boolean   @default(true)
+  deletedAt          DateTime? // Soft delete timestamp
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  student        Student?
+  lecturer       Lecturer?
+  deviceBindings DeviceBinding[]
+  auditLogsActed AuditLog[]      @relation("AuditLogActor")
+  notifications  Notification[]
+  supportTickets SupportTicket[]
+
+  @@index([role])
+  @@index([scopeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+/// Device fingerprint binding per student. Max 1 primary + 1 secondary per user.
+model DeviceBinding {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String       @db.Uuid
+  deviceFingerprint String // Unique device identifier from React Native device API
+  platform          String // "ios" or "android"
+  deviceModel       String?
+  osVersion         String?
+  isPrimary         Boolean      @default(false)
+  status            DeviceStatus @default(ACTIVE)
+  registeredAt      DateTime     @default(now())
+  lastSeenAt        DateTime?
+  revokedAt         DateTime?
+  revokedReason     String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, deviceFingerprint])
+  @@index([userId])
+  @@index([status])
+  @@map("device_bindings")
+}
+
+/// Append-only audit trail. No updatedAt. RLS policy (Phase 05) prevents UPDATE/DELETE.
+model AuditLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId    String      @db.Uuid
+  actorRole  Role
+  action     AuditAction
+  entityType String // e.g., "AttendanceRecord", "ExcuseLetter", "User"
+  entityId   String?     @db.Uuid
+  beforeJson Json? // Snapshot of entity state before change
+  afterJson  Json? // Snapshot of entity state after change
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json? // Additional context (e.g., reason, session ID)
+  createdAt  DateTime    @default(now())
+
+  actor User @relation("AuditLogActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Soft flag for suspicious check-in behaviour. Not auto-bans — surfaced for human review.
+model AnomalyFlag {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId    String      @db.Uuid
+  sessionId    String?     @db.Uuid
+  flagType     AnomalyType
+  description  String
+  isReviewed   Boolean     @default(false)
+  reviewedById String?     @db.Uuid
+  reviewedAt   DateTime?
+  reviewAction String? // "CONFIRMED_PRESENT", "CONFIRMED_ABSENT", "ESCALATED"
+  reviewNote   String?
+  createdAt    DateTime    @default(now())
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, sessionId, flagType]) // Idempotency guard — prevents duplicate flags
+  @@index([studentId])
+  @@index([sessionId])
+  @@index([flagType])
+  @@index([isReviewed])
+  @@map("anomaly_flags")
+}
+
+/// Push, SMS, and email delivery records.
+model Notification {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId   String             @db.Uuid
+  channel       NotificationChannel
+  templateKey   String // e.g., "session-open", "marked-absent"
+  language      String             @default("en") // "en" or "yo"
+  subject       String? // Email subject only
+  body          String
+  status        NotificationStatus @default(PENDING)
+  externalId    String? // FCM message ID, SMS gateway ID
+  failureReason String?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime           @default(now())
+
+  recipient User @relation(fields: [recipientId], references: [id])
+
+  @@index([recipientId])
+  @@index([status])
+  @@index([channel])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// User-submitted support tickets.
+model SupportTicket {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  submittedById String         @db.Uuid
+  category      TicketCategory
+  subject       String
+  description   String
+  status        TicketStatus   @default(OPEN)
+  assignedRole  Role?
+  assignedToId  String?        @db.Uuid
+  resolution    String?
+  resolvedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  submittedBy User @relation(fields: [submittedById], references: [id])
+
+  @@index([submittedById])
+  @@index([status])
+  @@index([category])
+  @@map("support_tickets")
+}
+
+// =============================================================================
+// Forward declarations — models defined in Phase 03 and Phase 04
+// These stubs allow Phase 02 relations to compile without errors.
+// They will be replaced with full definitions in subsequent phases.
+// =============================================================================
+
+model Student {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String        @unique @db.Uuid
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  anomalyFlags AnomalyFlag[]
+
+  @@map("students")
+}
+
+model Lecturer {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("lecturers")
+}
