@@ -29,6 +29,7 @@
     "@sentry/node": "^10.52.0",
     "@t3-oss/env-core": "^0.13.11",
     "argon2": "^0.44.0",
+    "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
     "fastify-plugin": "^5.1.0",
     "firebase-admin": "^13.9.0",
