@@ -109,6 +109,21 @@ enum TicketCategory {
   OTHER
 }
 
+enum SemesterType {
+  FIRST
+  SECOND
+  THIRD // Some programmes have a third semester
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -271,30 +286,322 @@ model SupportTicket {
 }
 
 // =============================================================================
-// Forward declarations — models defined in Phase 03 and Phase 04
-// These stubs allow Phase 02 relations to compile without errors.
-// They will be replaced with full definitions in subsequent phases.
+// Forward declarations — models defined in Phase 04
+// These stubs allow Phase 03 relations to compile without errors.
+// They will be replaced with full definitions in Phase 04.
 // =============================================================================
 
-model Student {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String        @unique @db.Uuid
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+model AttendanceRecord {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String   @db.Uuid
+  studentId    String   @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id])
-  anomalyFlags AnomalyFlag[]
+  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id])
+  student    Student          @relation(fields: [studentId], references: [id])
 
-  @@map("students")
+  @@map("attendance_records")
 }
 
-model Lecturer {
+model ExcuseLetter {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @unique @db.Uuid
+  studentId String   @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
 
+  @@map("excuse_letters")
+}
+
+model ExamEligibility {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId     String   @db.Uuid
+  semesterId       String   @db.Uuid
+  studentId        String   @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id])
+  semester   Semester         @relation(fields: [semesterId], references: [id])
+  student    Student          @relation(fields: [studentId], references: [id])
+
+  @@map("exam_eligibilities")
+}
+
+model CourseSession {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionId  String   @db.Uuid
+  venueId    String   @db.Uuid
+  lecturerId String?  @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  section  CourseSection @relation(fields: [sectionId], references: [id])
+  venue    Venue         @relation(fields: [venueId], references: [id])
+  lecturer Lecturer?     @relation(fields: [lecturerId], references: [id])
+
+  @@map("course_sessions")
+}
+
+// =============================================================================
+// Academic Structure Models (Phase 03)
+// =============================================================================
+
+model University {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique // "Kwara State University"
+  shortName String   @unique // "KWASU"
+  address   String
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  faculties Faculty[]
+
+  @@map("universities")
+}
+
+model Faculty {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  universityId String   @db.Uuid
+  name         String // e.g., "Faculty of Sciences"
+  code         String   @unique // e.g., "SCI"
+  deanId       String?  @db.Uuid // References User with role DEAN
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  university  University   @relation(fields: [universityId], references: [id])
+  departments Department[]
+
+  @@unique([universityId, name])
+  @@index([universityId])
+  @@map("faculties")
+}
+
+model Department {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facultyId String   @db.Uuid
+  name      String // e.g., "Department of Biology"
+  code      String   @unique // e.g., "BIO"
+  hodId     String?  @db.Uuid // References User with role HOD
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  faculty    Faculty     @relation(fields: [facultyId], references: [id])
+  programmes Programme[]
+  courses    Course[]
+  lecturers  Lecturer[]
+
+  @@unique([facultyId, name])
+  @@index([facultyId])
+  @@map("departments")
+}
+
+model Programme {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  departmentId  String   @db.Uuid
+  name          String // e.g., "B.Sc. Biology"
+  code          String   @unique // e.g., "BSC-BIO"
+  durationYears Int // e.g., 4 for a 4-year programme
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id])
+  students   Student[]
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+  @@map("programmes")
+}
+
+model AcademicSession {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique // e.g., "2024/2025"
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false) // Only one session active at a time
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  semesters Semester[]
+
+  @@map("academic_sessions")
+}
+
+model Semester {
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  academicSessionId      String          @db.Uuid
+  type                   SemesterType
+  startDate              DateTime
+  endDate                DateTime
+  examStartDate          DateTime?
+  eligibilityComputeDate DateTime? // Admin-configured trigger date for eligibility computation
+  eligibilityThreshold   Float           @default(75.0) // NUC minimum; configurable per semester
+  appealWindowDays       Int             @default(5)
+  maxApprovedExcuses     Int             @default(4)
+  isActive               Boolean         @default(false)
+  isFrozen               Boolean         @default(false) // True after exam period starts
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  academicSession   AcademicSession   @relation(fields: [academicSessionId], references: [id])
+  timetableEntries  TimetableEntry[]
+  courseSections    CourseSection[]
+  examEligibilities ExamEligibility[]
+
+  @@unique([academicSessionId, type])
+  @@index([academicSessionId])
+  @@index([isActive])
+  @@map("semesters")
+}
+
+model Course {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  departmentId String   @db.Uuid
+  code         String   @unique // e.g., "BIO201"
+  title        String // e.g., "General Biology II"
+  creditUnits  Int
+  level        Int // 100, 200, 300, 400, 500, 600
+  isElective   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department    @relation(fields: [departmentId], references: [id])
+  sections   CourseSection[]
+
+  @@index([departmentId])
+  @@index([level])
+  @@map("courses")
+}
+
+model CourseSection {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId      String   @db.Uuid
+  semesterId    String   @db.Uuid
+  sectionLabel  String // "A", "B", "C"
+  lecturerId    String?  @db.Uuid
+  maxEnrollment Int      @default(200)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  course           Course             @relation(fields: [courseId], references: [id])
+  semester         Semester           @relation(fields: [semesterId], references: [id])
+  lecturer         Lecturer?          @relation(fields: [lecturerId], references: [id])
+  enrollments      CourseEnrollment[]
+  sessions         CourseSession[]
+  timetableEntries TimetableEntry[]
+
+  @@unique([courseId, semesterId, sectionLabel])
+  @@index([courseId])
+  @@index([semesterId])
+  @@index([lecturerId])
+  @@map("course_sections")
+}
+
+model CourseEnrollment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId       String    @db.Uuid
+  courseSectionId String    @db.Uuid
+  isCarryOver     Boolean   @default(false)
+  enrolledAt      DateTime  @default(now())
+  droppedAt       DateTime?
+
+  student           Student           @relation(fields: [studentId], references: [id])
+  courseSection     CourseSection     @relation(fields: [courseSectionId], references: [id])
+  attendanceRecords AttendanceRecord[]
+  examEligibilities ExamEligibility[]
+
+  @@unique([studentId, courseSectionId])
+  @@index([studentId])
+  @@index([courseSectionId])
+  @@map("course_enrollments")
+}
+
+model Venue {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String // e.g., "LT1 — Main Lecture Theatre"
+  buildingName   String
+  latitude       Float // Venue's registered GPS latitude (stored — not student GPS)
+  longitude      Float // Venue's registered GPS longitude (stored — not student GPS)
+  geofenceRadius Int      @default(50) // Metres; valid range 30–150 enforced at app layer
+  capacity       Int
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  timetableEntries TimetableEntry[]
+  sessions         CourseSession[]
+
+  @@index([isActive])
+  @@map("venues")
+}
+
+model TimetableEntry {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseSectionId String    @db.Uuid
+  semesterId      String    @db.Uuid
+  venueId         String    @db.Uuid
+  dayOfWeek       DayOfWeek
+  startTime       String // "HH:MM" 24-hour format, e.g., "08:00"
+  endTime         String // "HH:MM" 24-hour format, e.g., "10:00"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  courseSection CourseSection @relation(fields: [courseSectionId], references: [id])
+  semester      Semester      @relation(fields: [semesterId], references: [id])
+  venue         Venue         @relation(fields: [venueId], references: [id])
+
+  @@unique([dayOfWeek, startTime, venueId, semesterId]) // Prevents duplicate venue slots
+  @@unique([dayOfWeek, startTime, courseSectionId, semesterId]) // Prevents duplicate section slots
+  @@index([courseSectionId])
+  @@index([semesterId])
+  @@index([venueId])
+  @@index([dayOfWeek])
+  @@map("timetable_entries")
+}
+
+/// Student identity and academic profile.
+model Student {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @unique @db.Uuid
+  matricNumber String   @unique // Uppercase; validated against MATRIC_NUMBER_REGEX at app layer
+  programmeId  String   @db.Uuid
+  level        Int // 100, 200, 300, 400, 500, 600
+  hasCarryOver Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id])
+  programme         Programme          @relation(fields: [programmeId], references: [id])
+  enrollments       CourseEnrollment[]
+  attendanceRecords AttendanceRecord[]
+  excuseLetters     ExcuseLetter[]
+  examEligibilities ExamEligibility[]
+  anomalyFlags      AnomalyFlag[]
+
+  @@index([programmeId])
+  @@index([level])
+  @@map("students")
+}
+
+/// Lecturer identity and academic profile.
+model Lecturer {
+  id                  String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String  @unique @db.Uuid
+  staffId             String  @unique // Validated against STAFF_ID_REGEX at app layer
+  departmentId        String  @db.Uuid
+  title               String? // e.g., "Dr.", "Prof."
+  accountabilityScore Float? // Computed weekly by BullMQ job; visible to HOD+ only
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user             User            @relation(fields: [userId], references: [id])
+  department       Department      @relation(fields: [departmentId], references: [id])
+  assignedSections CourseSection[]
+  sessions         CourseSession[]
+
+  @@index([departmentId])
   @@map("lecturers")
 }
