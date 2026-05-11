@@ -124,6 +124,56 @@ enum DayOfWeek {
   SATURDAY
 }
 
+enum SessionStatus {
+  SCHEDULED
+  ACTIVE
+  CLOSED
+  LOCKED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  LATE
+  MANUAL_OVERRIDE
+  PENDING_REVIEW
+}
+
+enum CheckInMethod {
+  GPS_DIRECT
+  QR_CODE
+  ALPHANUMERIC_CODE
+  FACE_RECOGNITION
+  MANUAL_OVERRIDE
+}
+
+enum ExcuseStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  APPEAL_SUBMITTED
+  HOD_APPROVED
+  HOD_REJECTED
+}
+
+enum ExcuseReason {
+  MEDICAL
+  BEREAVEMENT
+  OFFICIAL_UNIVERSITY_ACTIVITY
+  GOVERNMENT_SUMMONS
+  TRANSPORT_SECURITY_EMERGENCY
+  OTHER
+}
+
+enum EligibilityStatus {
+  PENDING
+  ELIGIBLE
+  BARRED
+  CONDITIONAL
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -286,63 +336,186 @@ model SupportTicket {
 }
 
 // =============================================================================
-// Forward declarations — models defined in Phase 04
-// These stubs allow Phase 03 relations to compile without errors.
-// They will be replaced with full definitions in Phase 04.
+// Attendance, Excuse & Eligibility Models (Phase 04)
 // =============================================================================
 
+/// Individual lecture instance. Drives check-in, QR, and alphanumeric code flows.
+model CourseSession {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseSectionId    String        @db.Uuid
+  venueId            String        @db.Uuid
+  lecturerId         String        @db.Uuid
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  actualStart        DateTime?
+  actualEnd          DateTime?
+  status             SessionStatus @default(SCHEDULED)
+  qrToken            String? // Signed JWT; invalidated in Redis on regeneration
+  qrTokenExpiresAt   DateTime?
+  alphanumericCode   String? // 6–8 chars from ABCDEFGHJKLMNPQRTUVWXYZ23456789
+  codeExpiresAt      DateTime?
+  isMakeUp           Boolean       @default(false)
+  overrideWindowEnd  DateTime? // 48 hours after actualEnd; set on session close
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  courseSection     CourseSection      @relation(fields: [courseSectionId], references: [id])
+  venue             Venue              @relation(fields: [venueId], references: [id])
+  lecturer          Lecturer           @relation(fields: [lecturerId], references: [id])
+  attendanceRecords AttendanceRecord[]
+
+  @@index([courseSectionId])
+  @@index([venueId])
+  @@index([lecturerId])
+  @@index([status])
+  @@index([scheduledStart])
+  @@map("course_sessions")
+}
+
+/// Per-student per-session attendance record. GPS coordinates are never stored.
 model AttendanceRecord {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  enrollmentId String   @db.Uuid
-  studentId    String   @db.Uuid
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId      String           @db.Uuid
+  sessionId      String           @db.Uuid
+  enrollmentId   String           @db.Uuid
+  status         AttendanceStatus @default(PENDING_REVIEW)
+  checkInMethod  CheckInMethod?
+  checkedInAt    DateTime?
+  deviceRooted   Boolean          @default(false)
+  spoofingFlagged Boolean         @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id])
-  student    Student          @relation(fields: [studentId], references: [id])
+  student        Student          @relation(fields: [studentId], references: [id])
+  session        CourseSession    @relation(fields: [sessionId], references: [id])
+  enrollment     CourseEnrollment @relation(fields: [enrollmentId], references: [id])
+  manualOverride ManualOverride?
+  excuseLetter   ExcuseLetter?
 
+  @@unique([studentId, sessionId])
+  @@index([studentId])
+  @@index([sessionId])
+  @@index([enrollmentId])
+  @@index([status])
+  @@index([checkedInAt])
   @@map("attendance_records")
 }
 
+/// Audit trail for manual attendance overrides. Requires justification ≥ 20 chars.
+model ManualOverride {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attendanceRecordId    String           @unique @db.Uuid
+  actorId               String           @db.Uuid // Lecturer or SUPER_ADMIN who performed override
+  actorRole             Role
+  justification         String // Minimum 20 characters; enforced at app layer
+  beforeStatus          AttendanceStatus
+  afterStatus           AttendanceStatus
+  requiresAdminApproval Boolean          @default(false) // True if beyond 48-hour window
+  approvedById          String?          @db.Uuid
+  approvedAt            DateTime?
+  rejectedById          String?          @db.Uuid
+  rejectedAt            DateTime?
+  rejectionReason       String?
+  createdAt             DateTime         @default(now())
+
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id])
+
+  @@index([attendanceRecordId])
+  @@index([actorId])
+  @@map("manual_overrides")
+}
+
+/// Student absence excuse letter with document uploads and full approval state machine.
 model ExcuseLetter {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  studentId String   @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId            String       @db.Uuid
+  attendanceRecordId   String?      @unique @db.Uuid // Linked after approval updates the record
+  courseSectionId      String       @db.Uuid
+  absenceDates         DateTime[] // One or more absence dates covered by this excuse
+  reason               ExcuseReason
+  otherExplanation     String? // Required when reason = OTHER; minimum 30 characters
+  documentS3Keys       String[] // S3 object keys; max 3 files, 5MB each
+  status               ExcuseStatus @default(SUBMITTED)
+  lecturerComment      String?
+  lecturerReviewedById String?      @db.Uuid
+  lecturerReviewedAt   DateTime?
+  hodComment           String?
+  hodReviewedById      String?      @db.Uuid
+  hodReviewedAt        DateTime?
+  appealReason         String?
+  appealSubmittedAt    DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id])
+  student          Student           @relation(fields: [studentId], references: [id])
+  attendanceRecord AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id])
+  courseSection    CourseSection     @relation(fields: [courseSectionId], references: [id])
 
+  @@index([studentId])
+  @@index([courseSectionId])
+  @@index([status])
+  @@index([createdAt])
   @@map("excuse_letters")
 }
 
+/// Computed exam eligibility per student per course section per semester.
 model ExamEligibility {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  enrollmentId     String   @db.Uuid
-  semesterId       String   @db.Uuid
-  studentId        String   @db.Uuid
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId           String            @db.Uuid
+  enrollmentId        String            @db.Uuid
+  semesterId          String            @db.Uuid
+  rawPercentage       Float // Attendance % before excuse adjustments
+  effectivePercentage Float // Attendance % after approved excuses
+  status              EligibilityStatus @default(PENDING)
+  atRiskPredicted     Boolean           @default(false) // Set by early intervention worker
+  appealSubmittedAt   DateTime?
+  appealDecidedAt     DateTime?
+  appealDecision      String?
+  computedAt          DateTime?
+  frozenAt            DateTime? // Set when semester is frozen
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
+  student    Student          @relation(fields: [studentId], references: [id])
   enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id])
   semester   Semester         @relation(fields: [semesterId], references: [id])
-  student    Student          @relation(fields: [studentId], references: [id])
 
+  @@unique([studentId, enrollmentId, semesterId])
+  @@index([studentId])
+  @@index([enrollmentId])
+  @@index([semesterId])
+  @@index([status])
+  @@index([atRiskPredicted])
   @@map("exam_eligibilities")
 }
 
-model CourseSession {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sectionId  String   @db.Uuid
-  venueId    String   @db.Uuid
-  lecturerId String?  @db.Uuid
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// =============================================================================
+// System Configuration Models (Phase 04)
+// =============================================================================
 
-  section  CourseSection @relation(fields: [sectionId], references: [id])
-  venue    Venue         @relation(fields: [venueId], references: [id])
-  lecturer Lecturer?     @relation(fields: [lecturerId], references: [id])
+/// Key-value store for system-wide configuration and feature flags.
+model SystemSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique // e.g., "face_recognition_enabled"
+  value     String // Stored as string; parsed at application layer
+  updatedAt DateTime @updatedAt
 
-  @@map("course_sessions")
+  @@map("system_settings")
+}
+
+/// Outbound webhook subscriptions for external integrations.
+model Webhook {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  url             String
+  events          String[] // e.g., ["attendance.session.opened", "excuse.approved"]
+  secretEncrypted String // AES-256 encrypted secret (same pattern as totpSecret)
+  isActive        Boolean  @default(true)
+  createdById     String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("webhooks")
 }
 
 // =============================================================================
@@ -492,6 +665,7 @@ model CourseSection {
   enrollments      CourseEnrollment[]
   sessions         CourseSession[]
   timetableEntries TimetableEntry[]
+  excuseLetters    ExcuseLetter[]
 
   @@unique([courseId, semesterId, sectionLabel])
   @@index([courseId])
