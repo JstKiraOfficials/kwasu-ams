@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=.env --watch --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start:dev": "tsx --env-file=.env src/index.ts",
     "build": "tsc",
     "start": "node dist/src/index.js",
     "type-check": "tsc --noEmit",
@@ -47,6 +48,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "prisma": "^6.19.3",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.11",
     "vitest": "^4.1.5"
