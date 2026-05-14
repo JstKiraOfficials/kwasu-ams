@@ -1,15 +1,31 @@
+/**
+ * @file authenticate.ts
+ * @module middleware
+ *
+ * Fastify preHandler that verifies the JWT Bearer token on every protected route.
+ *
+ * Supports both full access tokens (carrying role/scopeId/sessionId) and interim
+ * tokens (carrying only userId, issued after password verification before TOTP).
+ * When role/scopeId are absent from the token, they are resolved from the database.
+ *
+ * Security invariant: all 401 responses use the generic "Authentication required."
+ * message regardless of the specific failure reason, preventing information leakage.
+ *
+ * Guard chain position: authenticate → role-guard → scope-guard
+ */
+
 import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { verifyAccessToken } from '../lib/jwt.js';
 import { prisma } from '../lib/prisma.js';
 import { isOk } from '@kwasu-ams/utils';
 
-// Generic 401 response — never reveals whether the user exists
-const UNAUTHORIZED_RESPONSE = {
-  errors: [{ code: 'UNAUTHORIZED', message: 'Authentication required.' }],
-  statusCode: 401,
-  timestamp: '',
-};
-
+/**
+ * Sends a generic 401 Unauthorized response.
+ * The message is always "Authentication required." regardless of the failure reason.
+ *
+ * @param reply - Fastify reply to send the response on.
+ * @param code  - Machine-readable error code. Defaults to `'UNAUTHORIZED'`.
+ */
 function unauthorized(reply: FastifyReply, code = 'UNAUTHORIZED'): void {
   void reply.status(401).send({
     errors: [{ code, message: 'Authentication required.' }],
@@ -19,10 +35,18 @@ function unauthorized(reply: FastifyReply, code = 'UNAUTHORIZED'): void {
 }
 
 /**
- * Fastify preHandler — verifies the JWT access token and attaches the user
- * context to `request.user`. Must run before role-guard and scope-guard.
+ * Fastify preHandler that verifies the JWT Bearer token and attaches the
+ * authenticated user context to `request.user`.
  *
- * Public endpoints must NOT include this in their preHandler array.
+ * Handles both full access tokens and interim tokens (issued after password
+ * verification, before TOTP). Role and scopeId are always resolved from the
+ * database to ensure correctness even for interim tokens.
+ *
+ * Must run before `requireRoles` and `requireScope` in the preHandler chain.
+ * Public endpoints must NOT include this handler.
+ *
+ * @param request - Fastify request. `request.user` is set on success.
+ * @param reply   - Fastify reply used to send 401 responses on failure.
  */
 export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const authHeader = request.headers.authorization;
@@ -42,10 +66,19 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
   const payload = result.value;
 
-  // Verify the user still exists, is active, and is not locked
+  // Verify the user still exists, is active, and is not locked.
+  // Also fetch role and scopeId — interim tokens don't carry these fields,
+  // so we always resolve them from the database for correctness.
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, isActive: true, deletedAt: true, lockoutUntil: true },
+    select: {
+      id: true,
+      role: true,
+      scopeId: true,
+      isActive: true,
+      deletedAt: true,
+      lockoutUntil: true,
+    },
   });
 
   if (!user || !user.isActive || user.deletedAt !== null) {
@@ -60,11 +93,9 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
   request.user = {
     userId: payload.userId,
-    role: payload.role,
-    scopeId: payload.scopeId,
-    sessionId: payload.sessionId,
+    // Use DB role — interim tokens don't carry role/scopeId in the payload
+    role: (payload.role ?? user.role) as import('@kwasu-ams/types').Role,
+    scopeId: payload.scopeId ?? user.scopeId,
+    sessionId: payload.sessionId ?? '',
   };
 }
-
-// Suppress unused variable warning for the fallback object
-void UNAUTHORIZED_RESPONSE;

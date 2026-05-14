@@ -1,3 +1,11 @@
+/**
+ * @file authenticate.test.ts
+ * @module middleware/__tests__
+ *
+ * Unit tests for the `authenticate` Fastify preHandler.
+ * All external dependencies (Prisma) are mocked.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { type FastifyRequest, type FastifyReply } from 'fastify';
 import { authenticate } from '../authenticate.js';
@@ -44,6 +52,8 @@ describe('authenticate middleware', () => {
     const { prisma } = await import('../../lib/prisma.js');
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
       id: 'user-123',
+      role: 'STUDENT',
+      scopeId: null,
       isActive: true,
       deletedAt: null,
       lockoutUntil: null,
