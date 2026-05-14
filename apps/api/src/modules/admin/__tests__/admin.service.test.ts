@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Buffer } from 'node:buffer';
+import { Role } from '@kwasu-ams/types';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ const LECTURER_INPUT = {
   fullName: 'Test Lecturer',
   email: 'test@kwasu.edu.ng',
   phone: '+2348012345678',
-  role: 'LECTURER' as const,
+  role: Role.LECTURER,
 };
 
 // ── createUser ────────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ describe('admin.service — createUser', () => {
         fullName: 'Test Student',
         email: 'student@kwasu.edu.ng',
         phone: '+2348012345679',
-        role: 'STUDENT' as const,
+        role: Role.STUDENT,
       },
       'admin-1',
       'SUPER_ADMIN',
@@ -121,7 +122,7 @@ describe('admin.service — createUser', () => {
           fullName: 'Bad Student',
           email: 'bad@kwasu.edu.ng',
           phone: '+2348012345678',
-          role: 'STUDENT' as const,
+          role: Role.STUDENT,
         },
         'admin-1',
         'SUPER_ADMIN',
@@ -138,7 +139,7 @@ describe('admin.service — createUser', () => {
           fullName: 'Bad Lecturer',
           email: 'bad@kwasu.edu.ng',
           phone: '+2348012345678',
-          role: 'LECTURER' as const,
+          role: Role.LECTURER,
         },
         'admin-1',
         'SUPER_ADMIN',

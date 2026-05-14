@@ -8,29 +8,62 @@
  * minute (vs the global 200/min) to mitigate brute-force attacks.
  *
  * Route summary:
- * | Method | Path                    | Auth required |
- * |--------|-------------------------|---------------|
- * | POST   | /auth/login             | No            |
- * | POST   | /auth/refresh           | No            |
- * | POST   | /auth/forgot-password   | No            |
- * | POST   | /auth/reset-password    | No            |
- * | POST   | /auth/change-password   | Yes (access)  |
- * | POST   | /auth/logout            | Yes (access)  |
+ * | Method | Path                    | Auth required          |
+ * |--------|-------------------------|------------------------|
+ * | POST   | /auth/login             | No                     |
+ * | POST   | /auth/refresh           | No                     |
+ * | POST   | /auth/forgot-password   | No                     |
+ * | POST   | /auth/reset-password    | No                     |
+ * | POST   | /auth/recover-totp      | No                     |
+ * | POST   | /auth/change-password   | Yes (interim/access)   |
+ * | POST   | /auth/logout            | Yes (access)           |
+ * | POST   | /auth/setup-totp        | Yes (interim)          |
+ * | POST   | /auth/confirm-totp      | Yes (interim)          |
+ * | POST   | /auth/verify-totp       | Yes (interim)          |
  */
 
 import { type FastifyInstance } from 'fastify';
 import { authenticate } from '../../middleware/authenticate.js';
 import * as controller from './auth.controller.js';
 
-/** Rate-limit config applied to every auth route (5 req/min). */
+/**
+ * Rate-limit configuration applied to every auth route.
+ * Restricts each IP to 5 requests per minute to mitigate brute-force attacks.
+ */
 const AUTH_RATE_LIMIT = { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } };
+
+/**
+ * Shared Fastify JSON schema for request bodies that carry a single 6-digit
+ * TOTP code. Reused by `/auth/confirm-totp` and `/auth/verify-totp`.
+ */
+const TOTP_CODE_BODY = {
+  type: 'object',
+  required: ['code'],
+  properties: {
+    code: {
+      type: 'string',
+      minLength: 6,
+      maxLength: 6,
+      pattern: '^\\d{6}$',
+      description: '6-digit TOTP code from the authenticator app',
+    },
+  },
+};
 
 /**
  * Registers all authentication routes on the provided Fastify instance.
  *
  * Called from `app.ts` via `app.register(registerAuthRoutes)`.
  *
+ * Covers the full authentication lifecycle:
+ * - Password-based login → interim token
+ * - TOTP setup (setup → confirm) and verification → full JWT pair
+ * - TOTP recovery via backup code
+ * - Password change and reset
+ * - Token rotation and logout
+ *
  * @param app - The Fastify application instance to register routes on.
+ * @returns A promise that resolves once all routes have been registered.
  */
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   // ── Public routes (no authentication required) ────────────────────────────
@@ -173,7 +206,53 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     controller.resetPasswordHandler,
   );
 
-  // ── Protected routes (valid access token required) ────────────────────────
+  /**
+   * POST /auth/recover-totp
+   * Public endpoint. Authenticates a user via a single-use backup recovery code
+   * when they cannot access their authenticator app. Issues a full JWT pair on
+   * success and removes the used code from the stored hash list.
+   */
+  app.post(
+    '/auth/recover-totp',
+    {
+      ...AUTH_RATE_LIMIT,
+      schema: {
+        tags: ['auth'],
+        summary: 'Recover account access using a TOTP backup code',
+        description:
+          "Accepts the user's institutional identifier and one of their 8 single-use " +
+          'backup recovery codes. On success, issues a full access + refresh token pair ' +
+          'and permanently removes the used code. Returns a generic 401 on any failure ' +
+          'to prevent enumeration.',
+        body: {
+          type: 'object',
+          required: ['identifier', 'recoveryCode'],
+          properties: {
+            identifier: {
+              type: 'string',
+              description: 'Matric number or staff ID',
+            },
+            recoveryCode: {
+              type: 'string',
+              description: '8-character alphanumeric backup recovery code',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              accessToken: { type: 'string', description: '30-minute access token' },
+              refreshToken: { type: 'string', description: '7-day refresh token' },
+            },
+          },
+        },
+      },
+    },
+    controller.recoverTotpHandler,
+  );
+
+  // ── Protected routes (valid interim or access token required) ─────────────
 
   /**
    * POST /auth/change-password
@@ -244,5 +323,123 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     controller.logoutHandler,
+  );
+
+  /**
+   * POST /auth/setup-totp
+   * Requires a valid interim token (issued by `POST /auth/login`).
+   * Generates a new TOTP secret, stores it temporarily in Redis (10-minute TTL),
+   * and returns the `otpauth://` URI for QR code rendering by the client.
+   * Returns 409 if the user has already completed TOTP enrollment.
+   */
+  app.post(
+    '/auth/setup-totp',
+    {
+      preHandler: [authenticate],
+      ...AUTH_RATE_LIMIT,
+      schema: {
+        tags: ['auth'],
+        summary: 'Begin TOTP enrollment — returns QR code URI',
+        description:
+          'Generates a TOTP secret and returns the `otpauth://totp/...` URI. ' +
+          'The client renders the QR image from this URI using `qrcode.react` (web) ' +
+          'or `react-native-qrcode-svg` (mobile). The plaintext secret is also returned ' +
+          'as a manual entry fallback. The setup session expires after 10 minutes.',
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              secret: {
+                type: 'string',
+                description: 'Base32-encoded TOTP secret for manual entry in authenticator apps',
+              },
+              qrCodeUri: {
+                type: 'string',
+                description: 'otpauth:// URI — pass to QRCodeSVG value prop',
+              },
+            },
+          },
+        },
+      },
+    },
+    controller.setupTotpHandler,
+  );
+
+  /**
+   * POST /auth/confirm-totp
+   * Requires a valid interim token.
+   * Verifies the first TOTP code from the authenticator app, persists the
+   * encrypted secret to the database, generates 8 single-use backup codes,
+   * and marks the user as `totpEnrolled: true`. Backup codes are shown once.
+   */
+  app.post(
+    '/auth/confirm-totp',
+    {
+      preHandler: [authenticate],
+      ...AUTH_RATE_LIMIT,
+      schema: {
+        tags: ['auth'],
+        summary: 'Confirm TOTP enrollment with first authenticator code',
+        description:
+          'Validates the 6-digit code against the pending setup secret in Redis. ' +
+          'On success: encrypts and persists the secret, generates 8 backup codes ' +
+          '(shown once — store them safely), and marks the account as TOTP-enrolled. ' +
+          'Returns 400 TOTP_SETUP_REQUIRED if the 10-minute setup window has expired.',
+        security: [{ bearerAuth: [] }],
+        body: TOTP_CODE_BODY,
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              backupCodes: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '8 single-use backup recovery codes — shown exactly once',
+              },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    controller.confirmTotpHandler,
+  );
+
+  /**
+   * POST /auth/verify-totp
+   * Requires a valid interim token (issued by `POST /auth/login`).
+   * Validates the 6-digit TOTP code with ±1 step tolerance (90-second window),
+   * enforces a used-token blacklist to prevent replay attacks, and issues the
+   * full JWT access + refresh token pair on success.
+   * Returns 403 TOTP_SETUP_REQUIRED if the user has not yet enrolled.
+   */
+  app.post(
+    '/auth/verify-totp',
+    {
+      preHandler: [authenticate],
+      ...AUTH_RATE_LIMIT,
+      schema: {
+        tags: ['auth'],
+        summary: 'Verify TOTP code and receive full JWT token pair',
+        description:
+          'Completes the two-factor authentication step. Accepts the 6-digit code ' +
+          "from the user's authenticator app. Uses ±1 step tolerance (90-second window) " +
+          'to accommodate clock drift. Each code can only be used once (replay protection). ' +
+          'Sets an HttpOnly `refreshToken` cookie in addition to the response body.',
+        security: [{ bearerAuth: [] }],
+        body: TOTP_CODE_BODY,
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              accessToken: { type: 'string', description: '30-minute access token' },
+              refreshToken: { type: 'string', description: '7-day refresh token' },
+            },
+          },
+        },
+      },
+    },
+    controller.verifyTotpHandler,
   );
 }

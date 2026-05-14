@@ -12,6 +12,7 @@ import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { Buffer } from 'node:buffer';
 import { CreateUserSchema } from './admin.schema.js';
 import * as adminService from './admin.service.js';
+import * as totpService from '../auth/totp.service.js';
 
 /**
  * Handles `POST /admin/users`.
@@ -76,4 +77,25 @@ export async function importUsersHandler(
     jobId: result.jobId,
     message: 'Import job queued. You will be notified when complete.',
   });
+}
+
+/**
+ * Handles `POST /admin/users/:id/reset-totp`.
+ *
+ * Clears the target user's TOTP secret, enrollment flag, and all backup codes,
+ * then writes an AuditLog entry. The user must re-enroll TOTP on next login.
+ * Restricted to SUPER_ADMIN via the route's `requireRoles` preHandler.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the target user.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `NOT_FOUND` (404) — target user does not exist.
+ */
+export async function resetTotpHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  await totpService.adminResetTotp(id, request.user!.userId);
+  void reply.status(200).send({ message: 'TOTP reset successfully.' });
 }

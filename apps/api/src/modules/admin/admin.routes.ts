@@ -6,10 +6,11 @@
  *
  * All routes require authentication and are restricted to privileged roles:
  *
- * | Method | Path                  | Roles allowed                        |
- * |--------|-----------------------|--------------------------------------|
- * | POST   | /admin/users          | SUPER_ADMIN, ACADEMIC_AFFAIRS        |
- * | POST   | /admin/users/import   | SUPER_ADMIN only                     |
+ * | Method | Path                        | Roles allowed                        |
+ * |--------|-----------------------------|--------------------------------------|
+ * | POST   | /admin/users                | SUPER_ADMIN, ACADEMIC_AFFAIRS        |
+ * | POST   | /admin/users/import         | SUPER_ADMIN only                     |
+ * | POST   | /admin/users/:id/reset-totp | SUPER_ADMIN only                     |
  *
  * Guard chain: `authenticate → requireRoles(...)` on every route.
  */
@@ -26,6 +27,7 @@ import * as controller from './admin.controller.js';
  * Called from `app.ts` via `app.register(registerAdminRoutes)`.
  *
  * @param app - The Fastify application instance to register routes on.
+ * @returns A promise that resolves once all routes have been registered.
  */
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -115,5 +117,44 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     controller.importUsersHandler,
+  );
+
+  /**
+   * POST /admin/users/:id/reset-totp
+   * Clears the target user's TOTP secret, enrollment flag, and all backup codes,
+   * forcing them to re-enroll on next login. Writes an AuditLog entry recording
+   * which admin performed the reset. Restricted to SUPER_ADMIN only.
+   */
+  app.post(
+    '/admin/users/:id/reset-totp',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['admin'],
+        summary: 'Reset TOTP enrollment for a user',
+        description:
+          'Clears `totpSecret`, sets `totpEnrolled = false`, and empties ' +
+          '`totpBackupCodes` for the specified user. The user will be required to ' +
+          'complete TOTP setup again on their next login. Writes an AuditLog entry ' +
+          'with action `TOTP_RESET`. Restricted to SUPER_ADMIN only.',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid', description: 'UUID of the target user' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    controller.resetTotpHandler,
   );
 }

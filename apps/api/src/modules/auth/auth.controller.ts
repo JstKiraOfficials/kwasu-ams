@@ -22,8 +22,12 @@ import {
   ForgotPasswordSchema,
   RefreshTokenSchema,
   ResetPasswordSchema,
+  VerifyTotpSchema,
+  RecoverTotpSchema,
 } from './auth.schema.js';
 import * as authService from './auth.service.js';
+import * as totpService from './totp.service.js';
+import { env } from '../../config/env.js';
 
 /**
  * Handles `POST /auth/login`.
@@ -129,4 +133,112 @@ export async function logoutHandler(request: FastifyRequest, reply: FastifyReply
   const body = request.body as { refreshToken?: string } | null;
   await authService.logout(request.user!.userId, request.user!.role, body?.refreshToken);
   void reply.status(200).send({ message: 'Logged out successfully.' });
+}
+
+/**
+ * Handles `POST /auth/setup-totp`.
+ *
+ * Requires a valid interim token (`authenticate` preHandler must run first).
+ * Generates a new TOTP secret, stores it in Redis with a 10-minute TTL, and
+ * returns the `otpauth://` URI for QR code rendering plus the raw base32 secret
+ * for manual entry. Returns 409 if the user is already enrolled.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `CONFLICT` (409) — user has already completed TOTP enrollment.
+ * @throws {AppError} `NOT_FOUND` (404) — user record does not exist.
+ */
+export async function setupTotpHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const result = await totpService.setupTotp(request.user!.userId);
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /auth/confirm-totp`.
+ *
+ * Requires a valid interim token (`authenticate` preHandler must run first).
+ * Validates the first TOTP code against the pending secret in Redis, persists
+ * the AES-256 encrypted secret to the database, generates 8 single-use backup
+ * codes (returned in plaintext exactly once), and marks the user as enrolled.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  Body: `{ code: string }` — 6-digit TOTP code.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `TOTP_INVALID` (400) — code is incorrect.
+ * @throws {AppError} `TOTP_SETUP_REQUIRED` (400) — Redis setup session has expired.
+ */
+export async function confirmTotpHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const body = VerifyTotpSchema.parse(request.body);
+  const result = await totpService.confirmTotp(request.user!.userId, body.code);
+  void reply.status(200).send({
+    ...result,
+    message:
+      'TOTP enrollment complete. Store these backup codes safely — they will not be shown again.',
+  });
+}
+
+/**
+ * Handles `POST /auth/verify-totp`.
+ *
+ * Requires a valid interim token (`authenticate` preHandler must run first).
+ * Validates the 6-digit TOTP code with ±1 step tolerance, enforces a
+ * used-token blacklist to prevent replay attacks, and on success issues the
+ * full JWT access + refresh token pair. The refresh token is set as an
+ * HttpOnly cookie (web) and also returned in the response body (mobile).
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  Body: `{ code: string }` — 6-digit TOTP code.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `TOTP_INVALID` (400) — code is incorrect or already used.
+ * @throws {AppError} `TOTP_SETUP_REQUIRED` (403) — user has not yet enrolled TOTP.
+ * @throws {AppError} `NOT_FOUND` (404) — user record does not exist.
+ */
+export async function verifyTotpHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const body = VerifyTotpSchema.parse(request.body);
+  const result = await totpService.verifyTotp(request.user!.userId, body.code);
+
+  // Set HttpOnly cookie for web clients; mobile clients use the response body value.
+  reply.header(
+    'Set-Cookie',
+    `refreshToken=${result.refreshToken}; HttpOnly; SameSite=Strict; Path=/auth/refresh; Max-Age=604800${env.NODE_ENV === 'production' ? '; Secure' : ''}`,
+  );
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /auth/recover-totp`.
+ *
+ * Public endpoint — no authentication required.
+ * Authenticates a user via a single-use backup recovery code when they cannot
+ * access their authenticator app. On success, issues a full JWT pair and sets
+ * the refresh token as an HttpOnly cookie. The used code is permanently removed
+ * from the stored hash list.
+ *
+ * @param request - Fastify request containing `{ identifier, recoveryCode }` body.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `VALIDATION_ERROR` (400) — identifier format is invalid.
+ * @throws {AppError} `INVALID_CREDENTIALS` (401) — identifier not found or code is wrong.
+ */
+export async function recoverTotpHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const body = RecoverTotpSchema.parse(request.body);
+  const result = await totpService.recoverTotp(body.identifier, body.recoveryCode);
+
+  // Set HttpOnly cookie for web clients; mobile clients use the response body value.
+  reply.header(
+    'Set-Cookie',
+    `refreshToken=${result.refreshToken}; HttpOnly; SameSite=Strict; Path=/auth/refresh; Max-Age=604800${env.NODE_ENV === 'production' ? '; Secure' : ''}`,
+  );
+  void reply.status(200).send(result);
 }
