@@ -30,6 +30,9 @@ import multipartPlugin from './plugins/multipart.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerAuthRoutes } from './modules/auth/auth.routes.js';
 import { registerAdminRoutes } from './modules/admin/admin.routes.js';
+import { registerFacultyRoutes } from './modules/faculties/faculties.routes.js';
+import { registerDepartmentRoutes } from './modules/departments/departments.routes.js';
+import { registerProgrammeRoutes } from './modules/programmes/programmes.routes.js';
 
 /**
  * Creates and configures the Fastify application instance.
@@ -122,6 +125,9 @@ export async function createApp(): Promise<FastifyInstance> {
   // ── Module routes ─────────────────────────────────────────────────────────
   await app.register(registerAuthRoutes);
   await app.register(registerAdminRoutes);
+  await app.register(registerFacultyRoutes);
+  await app.register(registerDepartmentRoutes);
+  await app.register(registerProgrammeRoutes);
 
   // ── Global error handler ──────────────────────────────────────────────────
   app.setErrorHandler(errorHandler);
