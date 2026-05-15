@@ -6,13 +6,22 @@
  *
  * Each handler validates the incoming request, delegates to the service layer,
  * and returns the appropriate HTTP response. No business logic lives here.
+ *
+ * Handler responsibilities:
+ * 1. Extract and validate data from the request (params, query, body).
+ * 2. Call the appropriate service method.
+ * 3. Return the response with the correct HTTP status code.
  */
 
 import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { Buffer } from 'node:buffer';
-import { CreateUserSchema } from './admin.schema.js';
+import { CreateUserSchema, ListUsersQuerySchema, UpdateUserSchema } from './admin.schema.js';
 import * as adminService from './admin.service.js';
-import * as totpService from '../auth/totp.service.js';
+import { processBulkImport } from './bulk-import.service.js';
+
+// =============================================================================
+// POST /admin/users
+// =============================================================================
 
 /**
  * Handles `POST /admin/users`.
@@ -34,12 +43,125 @@ export async function createUserHandler(
   void reply.status(201).send(user);
 }
 
+// =============================================================================
+// GET /admin/users
+// =============================================================================
+
+/**
+ * Handles `GET /admin/users`.
+ *
+ * Parses and validates query parameters through {@link ListUsersQuerySchema},
+ * delegates to {@link adminService.listUsers} with the actor's role and scope
+ * for enforcement, and returns a paginated `{ data, meta }` response.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  Query: `{ page?, pageSize?, role?, departmentId?, isActive?, search? }`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ */
+export async function listUsersHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const query = ListUsersQuerySchema.parse(request.query);
+  const result = await adminService.listUsers(
+    query,
+    request.user!.role,
+    request.user!.scopeId ?? null,
+  );
+  void reply.status(200).send(result);
+}
+
+// =============================================================================
+// GET /admin/users/:id
+// =============================================================================
+
+/**
+ * Handles `GET /admin/users/:id`.
+ *
+ * Extracts the `id` URL parameter and delegates to {@link adminService.getUserById}.
+ * Returns the user record (sensitive fields omitted) with status 200.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the target user.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `NOT_FOUND` (404) — target user does not exist.
+ */
+export async function getUserByIdHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const user = await adminService.getUserById(id);
+  void reply.status(200).send(user);
+}
+
+// =============================================================================
+// PATCH /admin/users/:id
+// =============================================================================
+
+/**
+ * Handles `PATCH /admin/users/:id`.
+ *
+ * Parses and validates the request body through {@link UpdateUserSchema},
+ * delegates to {@link adminService.updateUser}, and returns the updated user
+ * record with status 200.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the target user.
+ *                  Body: partial `UpdateUserSchema` fields.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `NOT_FOUND` (404) — target user does not exist.
+ * @throws {AppError} `VALIDATION_ERROR` (400) — role/scopeId incompatibility.
+ */
+export async function updateUserHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const body = UpdateUserSchema.parse(request.body);
+  const user = await adminService.updateUser(id, body, request.user!.userId);
+  void reply.status(200).send(user);
+}
+
+// =============================================================================
+// DELETE /admin/users/:id
+// =============================================================================
+
+/**
+ * Handles `DELETE /admin/users/:id`.
+ *
+ * Extracts the `id` URL parameter and delegates to {@link adminService.deleteUser}
+ * for a soft-delete (sets `deletedAt` and `isActive: false`). Returns a
+ * confirmation message with status 200.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the target user.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} `NOT_FOUND` (404) — target user does not exist.
+ */
+export async function deleteUserHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  await adminService.deleteUser(id, request.user!.userId);
+  void reply.status(200).send({ message: 'User deleted successfully.' });
+}
+
+// =============================================================================
+// POST /admin/users/import
+// =============================================================================
+
 /**
  * Handles `POST /admin/users/import`.
  *
- * Reads the multipart CSV file from the request, buffers it in memory, and
- * delegates to {@link adminService.importUsers} which uploads it to S3 and
- * queues a BullMQ processing job. Returns 202 Accepted with the job ID.
+ * Reads the multipart form-data body. Expects:
+ * - A CSV file field (any field name) containing the user data.
+ * - An optional `dryRun` text field (`"true"` / `"false"`).
+ *
+ * When `dryRun` is `true`, the service validates all rows and returns a preview
+ * without creating any accounts. When `false` (default), the CSV is uploaded to
+ * S3 and processed immediately via {@link processBulkImport}.
  *
  * @param request - Fastify request with `request.user` set by `authenticate`.
  *                  Expects a multipart form-data body with a CSV file field.
@@ -49,9 +171,24 @@ export async function importUsersHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
-  const data = await request.file();
+  const parts = request.parts();
 
-  if (!data) {
+  let csvBuffer: Buffer | null = null;
+  let dryRun = false;
+
+  for await (const part of parts) {
+    if (part.type === 'file') {
+      const chunks: Buffer[] = [];
+      for await (const chunk of part.file) {
+        chunks.push(chunk as Buffer);
+      }
+      csvBuffer = Buffer.concat(chunks);
+    } else if (part.type === 'field' && part.fieldname === 'dryRun') {
+      dryRun = part.value === 'true';
+    }
+  }
+
+  if (!csvBuffer || csvBuffer.length === 0) {
     void reply.status(400).send({
       errors: [{ code: 'VALIDATION_ERROR', message: 'CSV file is required.' }],
       statusCode: 400,
@@ -60,24 +197,42 @@ export async function importUsersHandler(
     return;
   }
 
-  // Buffer the entire file before uploading — prevents streaming issues with S3
-  const chunks: Buffer[] = [];
-  for await (const chunk of data.file) {
-    chunks.push(chunk as Buffer);
+  // Upload to S3 first, then process
+  const { importUsers } = await import('./admin.service.js');
+  const { jobId } = await importUsers(csvBuffer, request.user!.userId, request.user!.role);
+
+  // Derive the S3 key from the jobId (matches the format in importUsers)
+  const s3Key = `imports/${jobId.replace('bulk-', '')}-${request.user!.userId}.csv`;
+
+  const result = await processBulkImport(s3Key, request.user!.userId, dryRun);
+
+  if (!result.success) {
+    void reply.status(400).send({
+      errors: result.errors.map((e) => ({
+        code: 'VALIDATION_ERROR',
+        message: e.message,
+        field: `row${e.row}.${e.field}`,
+      })),
+      statusCode: 400,
+      timestamp: new Date().toISOString(),
+    });
+    return;
   }
-  const csvBuffer = Buffer.concat(chunks);
 
-  const result = await adminService.importUsers(
-    csvBuffer,
-    request.user!.userId,
-    request.user!.role,
-  );
+  if ('dryRun' in result && result.dryRun) {
+    void reply.status(200).send(result);
+    return;
+  }
 
-  void reply.status(202).send({
-    jobId: result.jobId,
-    message: 'Import job queued. You will be notified when complete.',
+  void reply.status(201).send({
+    ...result,
+    message: `Import complete. ${(result as { created: number }).created} accounts created.`,
   });
 }
+
+// =============================================================================
+// POST /admin/users/:id/reset-totp
+// =============================================================================
 
 /**
  * Handles `POST /admin/users/:id/reset-totp`.
@@ -96,6 +251,6 @@ export async function resetTotpHandler(
   reply: FastifyReply,
 ): Promise<void> {
   const { id } = request.params as { id: string };
-  await totpService.adminResetTotp(id, request.user!.userId);
+  await adminService.resetUserTotp(id, request.user!.userId);
   void reply.status(200).send({ message: 'TOTP reset successfully.' });
 }

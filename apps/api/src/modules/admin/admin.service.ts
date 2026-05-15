@@ -2,19 +2,24 @@
  * @file admin.service.ts
  * @module modules/admin
  *
- * Business logic for administrative account provisioning in KWASU AMS.
+ * Business logic for administrative user management in KWASU AMS.
  *
  * Responsibilities:
- * - Creating individual user accounts with a system-generated temporary password
- * - Validating identifier format (matric number vs staff ID) based on the role
- * - Uploading CSV files to S3 and queuing bulk import jobs
+ * - Paginated user listing with role, status, and search filters
+ * - Fetching a single user by ID
+ * - Updating user fields with role/scope compatibility validation
+ * - Soft-deleting users (sets `deletedAt` and `isActive: false`)
+ * - Delegating TOTP resets to the TOTP service
+ * - Creating individual user accounts (from Phase 10)
+ * - Uploading CSV files to S3 and queuing bulk import jobs (from Phase 10)
  *
  * Security notes:
- * - Temporary passwords are generated with `crypto.randomBytes` (CSPRNG).
- * - Passwords are hashed with Argon2id before storage — never stored in plaintext.
- * - `mustChangePassword` is always `true` for provisioned accounts, forcing a
- *   password change on first login.
- * - All state-changing operations write an AuditLog entry (fire-and-forget).
+ * - Sensitive fields (`passwordHash`, `totpSecret`, etc.) are excluded at the
+ *   Prisma query level via `select` — never stripped in post-processing.
+ * - `ACADEMIC_AFFAIRS` actors are scope-restricted to their `scopeId` at the
+ *   database query level, not in memory.
+ * - All state-changing operations write an `AuditLog` entry (fire-and-forget).
+ * - GPS coordinates are never stored anywhere in this module.
  *
  * Phase 27 note: Replace direct `prisma.auditLog.create` calls with
  * `auditLogQueue.add()` once BullMQ is wired up.
@@ -24,12 +29,48 @@ import { randomBytes } from 'crypto';
 import { Buffer } from 'node:buffer';
 import { type AuditAction, Prisma } from '@prisma/client';
 import { validateMatricNumber, validateStaffId, normaliseMatricNumber } from '@kwasu-ams/utils';
-import { type CreateUserInput, type IUserPublic, Role } from '@kwasu-ams/types';
+import {
+  type CreateUserInput,
+  type IUserPublic,
+  type PaginatedResponse,
+  Role,
+} from '@kwasu-ams/types';
 import { prisma } from '../../lib/prisma.js';
 import { uploadToS3 } from '../../lib/s3.js';
 import { hashPassword } from '../../lib/argon2.js';
 import { AppError } from '../../middleware/error-handler.js';
 import { env } from '../../config/env.js';
+import * as totpService from '../auth/totp.service.js';
+import { type ListUsersQuery, type UpdateUserInput } from './admin.schema.js';
+
+// =============================================================================
+// Prisma select — IUserPublic fields only
+// =============================================================================
+
+/**
+ * Prisma `select` object that returns only the fields included in `IUserPublic`.
+ *
+ * Applied to every user query in this module to ensure sensitive fields
+ * (`passwordHash`, `totpSecret`, `totpBackupCodes`, `failedAttempts`,
+ * `lockoutUntil`) are never fetched from the database.
+ */
+const USER_PUBLIC_SELECT = {
+  id: true,
+  identifier: true,
+  fullName: true,
+  email: true,
+  phone: true,
+  role: true,
+  scopeId: true,
+  mustChangePassword: true,
+  totpEnrolled: true,
+  languagePreference: true,
+  fcmToken: true,
+  isActive: true,
+  deletedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 // =============================================================================
 // Internal helpers
@@ -46,6 +87,8 @@ import { env } from '../../config/env.js';
  * @param action     - The {@link AuditAction} enum value.
  * @param entityType - Human-readable entity name, e.g. `"User"`.
  * @param entityId   - Optional UUID of the affected entity.
+ * @param beforeJson - Optional snapshot of entity state before the change.
+ * @param afterJson  - Optional snapshot of entity state after the change.
  * @param metadata   - Optional free-form context object.
  */
 async function writeAuditLog(
@@ -54,6 +97,8 @@ async function writeAuditLog(
   action: AuditAction,
   entityType: string,
   entityId?: string,
+  beforeJson?: Record<string, unknown>,
+  afterJson?: Record<string, unknown>,
   metadata?: Record<string, unknown>,
 ): Promise<void> {
   try {
@@ -64,6 +109,9 @@ async function writeAuditLog(
         action,
         entityType,
         entityId: entityId ?? null,
+        beforeJson:
+          beforeJson !== undefined ? (beforeJson as Prisma.InputJsonValue) : Prisma.JsonNull,
+        afterJson: afterJson !== undefined ? (afterJson as Prisma.InputJsonValue) : Prisma.JsonNull,
         metadata: metadata !== undefined ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
     });
@@ -73,7 +121,249 @@ async function writeAuditLog(
 }
 
 // =============================================================================
-// Create user
+// List users
+// =============================================================================
+
+/**
+ * Returns a paginated list of active (non-deleted) users with optional filters.
+ *
+ * Scope enforcement:
+ * - `SUPER_ADMIN` — no restriction, sees all users.
+ * - `ACADEMIC_AFFAIRS` — restricted to users whose `scopeId` matches the actor's
+ *   own `scopeId`. This is enforced at the Prisma query level.
+ *
+ * @param query        - Validated query parameters from {@link ListUsersQuerySchema}.
+ * @param actorRole    - Role of the requesting admin (used for scope enforcement).
+ * @param actorScopeId - Scope UUID of the requesting admin, or `null` for SUPER_ADMIN.
+ * @returns Paginated list of {@link IUserPublic} records with pagination metadata.
+ */
+export async function listUsers(
+  query: ListUsersQuery,
+  actorRole: Role,
+  actorScopeId: string | null,
+): Promise<PaginatedResponse<IUserPublic>> {
+  const { page, pageSize, role, isActive, search } = query;
+
+  const where: Prisma.UserWhereInput = { deletedAt: null };
+
+  if (role !== undefined) {
+    where.role = role;
+  }
+
+  if (isActive !== undefined) {
+    where.isActive = isActive;
+  }
+
+  if (search !== undefined && search.length > 0) {
+    where.OR = [
+      { fullName: { contains: search, mode: 'insensitive' } },
+      { identifier: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  // Scope restriction: ACADEMIC_AFFAIRS can only see users in their scope
+  if (actorRole === Role.ACADEMIC_AFFAIRS && actorScopeId !== null) {
+    where.scopeId = actorScopeId;
+  }
+
+  const skip = (page - 1) * pageSize;
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: USER_PUBLIC_SELECT,
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    data: users as IUserPublic[],
+    meta: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    },
+  };
+}
+
+// =============================================================================
+// Get user by ID
+// =============================================================================
+
+/**
+ * Fetches a single active user by their UUID.
+ *
+ * @param id - UUID of the user to fetch.
+ * @returns The user record as {@link IUserPublic} (sensitive fields omitted).
+ * @throws {AppError} `NOT_FOUND` (404) — user does not exist or has been soft-deleted.
+ */
+export async function getUserById(id: string): Promise<IUserPublic> {
+  const user = await prisma.user.findUnique({
+    where: { id, deletedAt: null },
+    select: USER_PUBLIC_SELECT,
+  });
+
+  if (!user) {
+    throw new AppError('NOT_FOUND', 'User not found.', 404);
+  }
+
+  return user as IUserPublic;
+}
+
+// =============================================================================
+// Update user
+// =============================================================================
+
+/**
+ * Updates a user's profile fields and/or role/scope assignment.
+ *
+ * Role change validation: if `data.role` is provided and differs from the
+ * current role, the new role must be compatible with `data.scopeId`:
+ * - Roles that require a scope (`HOD`, `DEAN`, `LECTURER`, `EXAM_OFFICER`,
+ *   `ACADEMIC_AFFAIRS`) must have a non-null `scopeId` after the update.
+ * - Roles with no scope (`SUPER_ADMIN`, `VICE_CHANCELLOR`, `STUDENT`) should
+ *   have `scopeId` set to `null`.
+ *
+ * Writes a `USER_UPDATED` AuditLog entry with before/after snapshots.
+ *
+ * @param id      - UUID of the user to update.
+ * @param data    - Validated partial update payload from {@link UpdateUserSchema}.
+ * @param actorId - UUID of the admin performing the update (for audit trail).
+ * @returns The updated user record as {@link IUserPublic}.
+ * @throws {AppError} `NOT_FOUND` (404) — user does not exist or has been soft-deleted.
+ * @throws {AppError} `VALIDATION_ERROR` (400) — role change is incompatible with the provided scopeId.
+ */
+export async function updateUser(
+  id: string,
+  data: UpdateUserInput,
+  actorId: string,
+): Promise<IUserPublic> {
+  const existing = await prisma.user.findUnique({
+    where: { id, deletedAt: null },
+    select: { ...USER_PUBLIC_SELECT, role: true, scopeId: true },
+  });
+
+  if (!existing) {
+    throw new AppError('NOT_FOUND', 'User not found.', 404);
+  }
+
+  // Validate role/scopeId compatibility when role is being changed
+  if (data.role !== undefined && data.role !== existing.role) {
+    const newScopeId = data.scopeId !== undefined ? data.scopeId : existing.scopeId;
+    const scopedRoles: Role[] = [
+      Role.HOD,
+      Role.DEAN,
+      Role.LECTURER,
+      Role.EXAM_OFFICER,
+      Role.ACADEMIC_AFFAIRS,
+    ];
+    const unscopedRoles: Role[] = [Role.SUPER_ADMIN, Role.VICE_CHANCELLOR];
+
+    if (scopedRoles.includes(data.role) && newScopeId === null) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `Role ${data.role} requires a scopeId (faculty or department UUID).`,
+        400,
+        'scopeId',
+      );
+    }
+
+    if (unscopedRoles.includes(data.role) && newScopeId !== null && newScopeId !== undefined) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `Role ${data.role} must not have a scopeId.`,
+        400,
+        'scopeId',
+      );
+    }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: {
+      ...(data.fullName !== undefined && { fullName: data.fullName }),
+      ...(data.email !== undefined && { email: data.email }),
+      ...(data.phone !== undefined && { phone: data.phone }),
+      ...(data.role !== undefined && { role: data.role as never }),
+      ...(data.scopeId !== undefined && { scopeId: data.scopeId }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+    },
+    select: USER_PUBLIC_SELECT,
+  });
+
+  void writeAuditLog(
+    actorId,
+    'SUPER_ADMIN',
+    'USER_UPDATED',
+    'User',
+    id,
+    existing as Record<string, unknown>,
+    updated as Record<string, unknown>,
+  );
+
+  return updated as IUserPublic;
+}
+
+// =============================================================================
+// Delete user (soft)
+// =============================================================================
+
+/**
+ * Soft-deletes a user by setting `deletedAt = now()` and `isActive = false`.
+ *
+ * The user record is never hard-deleted. Soft-deleted users cannot log in
+ * (the `authenticate` middleware checks `deletedAt` and `isActive`).
+ *
+ * Writes a `USER_DELETED` AuditLog entry.
+ *
+ * @param id      - UUID of the user to soft-delete.
+ * @param actorId - UUID of the SUPER_ADMIN performing the deletion (for audit trail).
+ * @returns A promise that resolves once the soft-delete is complete.
+ * @throws {AppError} `NOT_FOUND` (404) — user does not exist or is already soft-deleted.
+ */
+export async function deleteUser(id: string, actorId: string): Promise<void> {
+  const existing = await prisma.user.findUnique({
+    where: { id, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    throw new AppError('NOT_FOUND', 'User not found.', 404);
+  }
+
+  await prisma.user.update({
+    where: { id },
+    data: { deletedAt: new Date(), isActive: false },
+  });
+
+  void writeAuditLog(actorId, 'SUPER_ADMIN', 'USER_DELETED', 'User', id);
+}
+
+// =============================================================================
+// Reset user TOTP
+// =============================================================================
+
+/**
+ * Resets a user's TOTP enrollment, forcing them to re-enroll on next login.
+ *
+ * Delegates entirely to {@link totpService.adminResetTotp}. Restricted to
+ * `SUPER_ADMIN` via the route's `requireRoles` preHandler.
+ *
+ * @param targetUserId - UUID of the user whose TOTP enrollment is being reset.
+ * @param actorId      - UUID of the SUPER_ADMIN performing the reset (for audit trail).
+ * @returns A promise that resolves once the reset is complete.
+ * @throws {AppError} `NOT_FOUND` (404) — target user does not exist.
+ */
+export async function resetUserTotp(targetUserId: string, actorId: string): Promise<void> {
+  await totpService.adminResetTotp(targetUserId, actorId);
+}
+
+// =============================================================================
+// Create user (Phase 10)
 // =============================================================================
 
 /**
@@ -135,29 +425,13 @@ export async function createUser(
       mustChangePassword: true,
       totpEnrolled: false,
     },
-    select: {
-      id: true,
-      identifier: true,
-      fullName: true,
-      email: true,
-      phone: true,
-      role: true,
-      scopeId: true,
-      mustChangePassword: true,
-      totpEnrolled: true,
-      languagePreference: true,
-      fcmToken: true,
-      isActive: true,
-      deletedAt: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    select: USER_PUBLIC_SELECT,
   });
 
   // TODO Phase 25: enqueue SMS job to deliver tempPassword to user.phone
   // void smsQueue.add('send-sms', { to: user.phone, message: `Your KWASU AMS temporary password: ${tempPassword}` });
 
-  void writeAuditLog(actorId, actorRole, 'USER_CREATED', 'User', user.id, {
+  void writeAuditLog(actorId, actorRole, 'USER_CREATED', 'User', user.id, undefined, undefined, {
     identifier: normalisedIdentifier,
     role: data.role,
   });
@@ -166,7 +440,7 @@ export async function createUser(
 }
 
 // =============================================================================
-// Bulk import
+// Bulk import (Phase 10)
 // =============================================================================
 
 /**
@@ -195,9 +469,16 @@ export async function importUsers(
   // Upload CSV to S3 before queuing — prevents large files from blocking the thread
   await uploadToS3(env.AWS_S3_BUCKET_REPORTS, s3Key, csvBuffer, 'text/csv');
 
-  void writeAuditLog(actorId, actorRole, 'BULK_IMPORT_STARTED', 'User', undefined, {
-    s3Key,
-  });
+  void writeAuditLog(
+    actorId,
+    actorRole,
+    'BULK_IMPORT_STARTED',
+    'User',
+    undefined,
+    undefined,
+    undefined,
+    { s3Key },
+  );
 
   // TODO Phase 27: replace with BullMQ job
   // void bulkImportQueue.add('bulk-account-creation', { csvS3Key: s3Key, actorId });
