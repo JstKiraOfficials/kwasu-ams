@@ -254,3 +254,161 @@ export async function resetTotpHandler(
   await adminService.resetUserTotp(id, request.user!.userId);
   void reply.status(200).send({ message: 'TOTP reset successfully.' });
 }
+
+// =============================================================================
+// Academic Sessions & Semesters
+// =============================================================================
+
+/**
+ * Handles `GET /admin/academic-sessions`.
+ *
+ * Returns all academic sessions ordered by start date descending.
+ *
+ * @param _request - Fastify request (unused — no query params).
+ * @param reply    - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ */
+export async function listAcademicSessionsHandler(
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { listAcademicSessions } = await import('./admin.service.js');
+  const result = await listAcademicSessions();
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /admin/academic-sessions`.
+ *
+ * Creates a new academic session with `isActive: false`.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  Body: `{ name, startDate, endDate }`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `CONFLICT` (409) — session name already exists.
+ */
+export async function createAcademicSessionHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { createAcademicSession } = await import('./admin.service.js');
+  const body = request.body as { name: string; startDate: string; endDate: string };
+  const result = await createAcademicSession(
+    { name: body.name, startDate: new Date(body.startDate), endDate: new Date(body.endDate) },
+    request.user!.userId,
+  );
+  void reply.status(201).send(result);
+}
+
+/**
+ * Handles `PATCH /admin/academic-sessions/:id/activate`.
+ *
+ * Activates the specified session and deactivates all others atomically.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the session to activate.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — session does not exist.
+ */
+export async function activateAcademicSessionHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { activateAcademicSession } = await import('./admin.service.js');
+  const { id } = request.params as { id: string };
+  const result = await activateAcademicSession(id, request.user!.userId);
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /admin/academic-sessions/:id/semesters`.
+ *
+ * Creates a new semester within the specified academic session.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the parent academic session.
+ *                  Body: semester creation fields.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — academic session does not exist.
+ * @throws {AppError} `CONFLICT` (409) — semester of same type already exists.
+ */
+export async function createSemesterHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { createSemester } = await import('./admin.service.js');
+  const { id } = request.params as { id: string };
+  const body = request.body as {
+    type: import('@prisma/client').SemesterType;
+    startDate: string;
+    endDate: string;
+    examStartDate?: string;
+    eligibilityComputeDate?: string;
+    eligibilityThreshold?: number;
+    appealWindowDays?: number;
+    maxApprovedExcuses?: number;
+  };
+  const result = await createSemester(
+    {
+      academicSessionId: id,
+      type: body.type,
+      startDate: new Date(body.startDate),
+      endDate: new Date(body.endDate),
+      examStartDate: body.examStartDate !== undefined ? new Date(body.examStartDate) : undefined,
+      eligibilityComputeDate:
+        body.eligibilityComputeDate !== undefined
+          ? new Date(body.eligibilityComputeDate)
+          : undefined,
+      eligibilityThreshold: body.eligibilityThreshold,
+      appealWindowDays: body.appealWindowDays,
+      maxApprovedExcuses: body.maxApprovedExcuses,
+    },
+    request.user!.userId,
+  );
+  void reply.status(201).send(result);
+}
+
+/**
+ * Handles `PATCH /admin/academic-sessions/:id/semesters/:semesterId/activate`.
+ *
+ * Activates the specified semester and deactivates all others in the same session.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL params: `id` — session UUID, `semesterId` — semester UUID.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — semester does not exist.
+ */
+export async function activateSemesterHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { activateSemester } = await import('./admin.service.js');
+  const { semesterId } = request.params as { id: string; semesterId: string };
+  const result = await activateSemester(semesterId, request.user!.userId);
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `PATCH /admin/academic-sessions/:id/semesters/:semesterId/freeze`.
+ *
+ * Freezes the specified semester by setting `isFrozen = true`.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL params: `id` — session UUID, `semesterId` — semester UUID.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — semester does not exist.
+ */
+export async function freezeSemesterHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { freezeSemester } = await import('./admin.service.js');
+  const { semesterId } = request.params as { id: string; semesterId: string };
+  const result = await freezeSemester(semesterId, request.user!.userId);
+  void reply.status(200).send(result);
+}

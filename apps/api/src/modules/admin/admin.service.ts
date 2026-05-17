@@ -486,3 +486,297 @@ export async function importUsers(
 
   return { jobId };
 }
+
+// =============================================================================
+// Academic Sessions
+// =============================================================================
+
+/**
+ * Input shape for creating an academic session.
+ */
+export interface CreateAcademicSessionInput {
+  /** Display name, e.g. `"2024/2025"`. Must be unique. */
+  name: string;
+  /** Session start date. */
+  startDate: Date;
+  /** Session end date. */
+  endDate: Date;
+}
+
+/**
+ * Creates a new academic session with `isActive: false`.
+ *
+ * The session must be explicitly activated via {@link activateAcademicSession}.
+ * Writes a `SYSTEM_SETTING_CHANGED` AuditLog entry on success.
+ *
+ * @param data    - Session creation payload.
+ * @param actorId - UUID of the admin creating the session (for audit trail).
+ * @returns The created academic session record.
+ * @throws {AppError} `CONFLICT` (409) — a session with the same name already exists.
+ */
+export async function createAcademicSession(
+  data: CreateAcademicSessionInput,
+  actorId: string,
+): Promise<import('@kwasu-ams/types').IAcademicSession> {
+  const existing = await prisma.academicSession.findUnique({
+    where: { name: data.name },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new AppError('CONFLICT', `Academic session "${data.name}" already exists.`, 409, 'name');
+  }
+
+  const session = await prisma.academicSession.create({
+    data: { name: data.name, startDate: data.startDate, endDate: data.endDate, isActive: false },
+  });
+
+  void writeAuditLog(
+    actorId,
+    'SUPER_ADMIN',
+    'SYSTEM_SETTING_CHANGED',
+    'AcademicSession',
+    session.id,
+    undefined,
+    undefined,
+    {
+      action: 'CREATE',
+      name: data.name,
+    },
+  );
+
+  return session;
+}
+
+/**
+ * Returns all academic sessions ordered by start date descending.
+ *
+ * @returns Array of all academic session records.
+ */
+export async function listAcademicSessions(): Promise<
+  import('@kwasu-ams/types').IAcademicSession[]
+> {
+  return prisma.academicSession.findMany({ orderBy: { startDate: 'desc' } });
+}
+
+/**
+ * Activates an academic session, deactivating all others atomically.
+ *
+ * Uses a Prisma transaction to ensure only one session is active at a time.
+ * Writes a `SYSTEM_SETTING_CHANGED` AuditLog entry on success.
+ *
+ * @param id      - UUID of the session to activate.
+ * @param actorId - UUID of the SUPER_ADMIN performing the activation (for audit trail).
+ * @returns The activated academic session record.
+ * @throws {AppError} `NOT_FOUND` (404) — session does not exist.
+ */
+export async function activateAcademicSession(
+  id: string,
+  actorId: string,
+): Promise<import('@kwasu-ams/types').IAcademicSession> {
+  const existing = await prisma.academicSession.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) {
+    throw new AppError('NOT_FOUND', 'Academic session not found.', 404);
+  }
+
+  const [, session] = await prisma.$transaction([
+    prisma.academicSession.updateMany({ where: { id: { not: id } }, data: { isActive: false } }),
+    prisma.academicSession.update({ where: { id }, data: { isActive: true } }),
+  ]);
+
+  void writeAuditLog(
+    actorId,
+    'SUPER_ADMIN',
+    'SYSTEM_SETTING_CHANGED',
+    'AcademicSession',
+    id,
+    undefined,
+    undefined,
+    {
+      action: 'ACTIVATE',
+    },
+  );
+
+  return session;
+}
+
+// =============================================================================
+// Semesters
+// =============================================================================
+
+/**
+ * Input shape for creating a semester within an academic session.
+ */
+export interface CreateSemesterInput {
+  /** UUID of the parent academic session. */
+  academicSessionId: string;
+  /** Semester type: `FIRST`, `SECOND`, or `THIRD`. */
+  type: import('@prisma/client').SemesterType;
+  /** Semester start date. */
+  startDate: Date;
+  /** Semester end date. */
+  endDate: Date;
+  /** Optional date when exams begin (triggers eligibility banner 3 weeks prior). */
+  examStartDate?: Date;
+  /** Optional date when the eligibility computation BullMQ job runs. */
+  eligibilityComputeDate?: Date;
+  /** Attendance threshold percentage. Defaults to 75.0 (NUC minimum). */
+  eligibilityThreshold?: number;
+  /** Number of days students have to appeal eligibility decisions. Defaults to 5. */
+  appealWindowDays?: number;
+  /** Maximum approved excuses per student per semester. Defaults to 4. */
+  maxApprovedExcuses?: number;
+}
+
+/**
+ * Creates a new semester within an academic session.
+ *
+ * Writes a `SYSTEM_SETTING_CHANGED` AuditLog entry on success.
+ *
+ * @param data    - Semester creation payload.
+ * @param actorId - UUID of the admin creating the semester (for audit trail).
+ * @returns The created semester record.
+ * @throws {AppError} `NOT_FOUND` (404) — academic session does not exist.
+ * @throws {AppError} `CONFLICT` (409) — a semester of the same type already exists in this session.
+ */
+export async function createSemester(
+  data: CreateSemesterInput,
+  actorId: string,
+): Promise<import('@kwasu-ams/types').ISemester> {
+  const session = await prisma.academicSession.findUnique({
+    where: { id: data.academicSessionId },
+    select: { id: true },
+  });
+  if (!session) {
+    throw new AppError('NOT_FOUND', 'Academic session not found.', 404, 'academicSessionId');
+  }
+
+  const existing = await prisma.semester.findUnique({
+    where: {
+      academicSessionId_type: { academicSessionId: data.academicSessionId, type: data.type },
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new AppError(
+      'CONFLICT',
+      `A ${data.type} semester already exists for this session.`,
+      409,
+      'type',
+    );
+  }
+
+  const semester = await prisma.semester.create({
+    data: {
+      academicSessionId: data.academicSessionId,
+      type: data.type,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      examStartDate: data.examStartDate ?? null,
+      eligibilityComputeDate: data.eligibilityComputeDate ?? null,
+      eligibilityThreshold: data.eligibilityThreshold ?? 75.0,
+      appealWindowDays: data.appealWindowDays ?? 5,
+      maxApprovedExcuses: data.maxApprovedExcuses ?? 4,
+    },
+  });
+
+  void writeAuditLog(
+    actorId,
+    'SUPER_ADMIN',
+    'SYSTEM_SETTING_CHANGED',
+    'Semester',
+    semester.id,
+    undefined,
+    undefined,
+    {
+      action: 'CREATE',
+      type: data.type,
+    },
+  );
+
+  return semester as unknown as import('@kwasu-ams/types').ISemester;
+}
+
+/**
+ * Activates a semester, deactivating all other semesters in the same session atomically.
+ *
+ * Uses a Prisma transaction to ensure only one semester per session is active.
+ * Writes a `SYSTEM_SETTING_CHANGED` AuditLog entry on success.
+ *
+ * @param id      - UUID of the semester to activate.
+ * @param actorId - UUID of the SUPER_ADMIN performing the activation (for audit trail).
+ * @returns The activated semester record.
+ * @throws {AppError} `NOT_FOUND` (404) — semester does not exist.
+ */
+export async function activateSemester(
+  id: string,
+  actorId: string,
+): Promise<import('@kwasu-ams/types').ISemester> {
+  const existing = await prisma.semester.findUnique({
+    where: { id },
+    select: { id: true, academicSessionId: true },
+  });
+  if (!existing) {
+    throw new AppError('NOT_FOUND', 'Semester not found.', 404);
+  }
+
+  const [, semester] = await prisma.$transaction([
+    prisma.semester.updateMany({
+      where: { academicSessionId: existing.academicSessionId, id: { not: id } },
+      data: { isActive: false },
+    }),
+    prisma.semester.update({ where: { id }, data: { isActive: true } }),
+  ]);
+
+  void writeAuditLog(
+    actorId,
+    'SUPER_ADMIN',
+    'SYSTEM_SETTING_CHANGED',
+    'Semester',
+    id,
+    undefined,
+    undefined,
+    {
+      action: 'ACTIVATE',
+    },
+  );
+
+  return semester as unknown as import('@kwasu-ams/types').ISemester;
+}
+
+/**
+ * Freezes a semester by setting `isFrozen = true`.
+ *
+ * Once frozen, eligibility changes require `DEAN` approval (enforced in Phase 24).
+ * Writes a `SYSTEM_SETTING_CHANGED` AuditLog entry on success.
+ *
+ * @param id      - UUID of the semester to freeze.
+ * @param actorId - UUID of the SUPER_ADMIN performing the freeze (for audit trail).
+ * @returns The frozen semester record.
+ * @throws {AppError} `NOT_FOUND` (404) — semester does not exist.
+ */
+export async function freezeSemester(
+  id: string,
+  actorId: string,
+): Promise<import('@kwasu-ams/types').ISemester> {
+  const existing = await prisma.semester.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) {
+    throw new AppError('NOT_FOUND', 'Semester not found.', 404);
+  }
+
+  const semester = await prisma.semester.update({ where: { id }, data: { isFrozen: true } });
+
+  void writeAuditLog(
+    actorId,
+    'SUPER_ADMIN',
+    'SYSTEM_SETTING_CHANGED',
+    'Semester',
+    id,
+    undefined,
+    undefined,
+    {
+      action: 'FREEZE',
+    },
+  );
+
+  return semester as unknown as import('@kwasu-ams/types').ISemester;
+}

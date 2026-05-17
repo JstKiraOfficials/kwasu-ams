@@ -23,6 +23,14 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { requireRoles } from '../../middleware/role-guard.js';
 import { Role } from '@kwasu-ams/types';
 import * as controller from './admin.controller.js';
+import {
+  listAcademicSessionsHandler,
+  createAcademicSessionHandler,
+  activateAcademicSessionHandler,
+  createSemesterHandler,
+  activateSemesterHandler,
+  freezeSemesterHandler,
+} from './admin.controller.js';
 
 /**
  * Registers all admin user management routes on the provided Fastify instance.
@@ -230,6 +238,148 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     controller.importUsersHandler,
+  );
+
+  // ── GET /admin/academic-sessions ─────────────────────────────────────────
+  app.get(
+    '/admin/academic-sessions',
+    {
+      preHandler: [
+        authenticate,
+        requireRoles(Role.SUPER_ADMIN, Role.ACADEMIC_AFFAIRS, Role.VICE_CHANCELLOR),
+      ],
+      schema: {
+        tags: ['admin'],
+        summary: 'List all academic sessions',
+        security: [{ bearerAuth: [] }],
+        response: { 200: { type: 'array', items: { type: 'object' } } },
+      },
+    },
+    listAcademicSessionsHandler,
+  );
+
+  // ── POST /admin/academic-sessions ────────────────────────────────────────
+  app.post(
+    '/admin/academic-sessions',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN, Role.ACADEMIC_AFFAIRS)],
+      schema: {
+        tags: ['admin'],
+        summary: 'Create a new academic session',
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['name', 'startDate', 'endDate'],
+          properties: {
+            name: { type: 'string' },
+            startDate: { type: 'string', format: 'date-time' },
+            endDate: { type: 'string', format: 'date-time' },
+          },
+        },
+        response: { 201: { type: 'object' }, 409: { type: 'object' } },
+      },
+    },
+    createAcademicSessionHandler,
+  );
+
+  // ── PATCH /admin/academic-sessions/:id/activate ───────────────────────────
+  app.patch(
+    '/admin/academic-sessions/:id/activate',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['admin'],
+        summary: 'Activate an academic session (deactivates all others)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        response: { 200: { type: 'object' }, 404: { type: 'object' } },
+      },
+    },
+    activateAcademicSessionHandler,
+  );
+
+  // ── POST /admin/academic-sessions/:id/semesters ───────────────────────────
+  app.post(
+    '/admin/academic-sessions/:id/semesters',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN, Role.ACADEMIC_AFFAIRS)],
+      schema: {
+        tags: ['admin'],
+        summary: 'Create a semester within an academic session',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        body: {
+          type: 'object',
+          required: ['type', 'startDate', 'endDate'],
+          properties: {
+            type: { type: 'string', enum: ['FIRST', 'SECOND', 'THIRD'] },
+            startDate: { type: 'string', format: 'date-time' },
+            endDate: { type: 'string', format: 'date-time' },
+            examStartDate: { type: 'string', format: 'date-time' },
+            eligibilityComputeDate: { type: 'string', format: 'date-time' },
+            eligibilityThreshold: { type: 'number', minimum: 0, maximum: 100 },
+            appealWindowDays: { type: 'integer', minimum: 1 },
+            maxApprovedExcuses: { type: 'integer', minimum: 0 },
+          },
+        },
+        response: { 201: { type: 'object' }, 404: { type: 'object' }, 409: { type: 'object' } },
+      },
+    },
+    createSemesterHandler,
+  );
+
+  // ── PATCH /admin/academic-sessions/:id/semesters/:semesterId/activate ─────
+  app.patch(
+    '/admin/academic-sessions/:id/semesters/:semesterId/activate',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['admin'],
+        summary: 'Activate a semester (deactivates others in same session)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id', 'semesterId'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            semesterId: { type: 'string', format: 'uuid' },
+          },
+        },
+        response: { 200: { type: 'object' }, 404: { type: 'object' } },
+      },
+    },
+    activateSemesterHandler,
+  );
+
+  // ── PATCH /admin/academic-sessions/:id/semesters/:semesterId/freeze ───────
+  app.patch(
+    '/admin/academic-sessions/:id/semesters/:semesterId/freeze',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['admin'],
+        summary: 'Freeze a semester (isFrozen = true)',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id', 'semesterId'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            semesterId: { type: 'string', format: 'uuid' },
+          },
+        },
+        response: { 200: { type: 'object' }, 404: { type: 'object' } },
+      },
+    },
+    freezeSemesterHandler,
   );
 
   // ── POST /admin/users/:id/reset-totp ─────────────────────────────────────
