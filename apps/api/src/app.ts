@@ -38,6 +38,8 @@ import { registerVenueRoutes } from './modules/venues/venues.routes.js';
 import { registerTimetableRoutes } from './modules/timetable/timetable.routes.js';
 import { registerStudentRoutes } from './modules/students/students.routes.js';
 import { registerLecturerRoutes } from './modules/lecturers/lecturers.routes.js';
+import { registerDeviceRoutes } from './modules/devices/devices.routes.js';
+import { registerAnomalyRoutes } from './modules/anomalies/anomalies.routes.js';
 
 /**
  * Creates and configures the Fastify application instance.
@@ -138,6 +140,8 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(registerTimetableRoutes);
   await app.register(registerStudentRoutes);
   await app.register(registerLecturerRoutes);
+  await app.register(registerDeviceRoutes);
+  await app.register(registerAnomalyRoutes);
 
   // ── Global error handler ──────────────────────────────────────────────────
   app.setErrorHandler(errorHandler);
