@@ -27,6 +27,7 @@ import helmetPlugin from './plugins/helmet.js';
 import rateLimiterPlugin from './plugins/rate-limiter.js';
 import swaggerPlugin from './plugins/swagger.js';
 import multipartPlugin from './plugins/multipart.js';
+import websocketPlugin from '@fastify/websocket';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerAuthRoutes } from './modules/auth/auth.routes.js';
 import { registerAdminRoutes } from './modules/admin/admin.routes.js';
@@ -40,6 +41,8 @@ import { registerStudentRoutes } from './modules/students/students.routes.js';
 import { registerLecturerRoutes } from './modules/lecturers/lecturers.routes.js';
 import { registerDeviceRoutes } from './modules/devices/devices.routes.js';
 import { registerAnomalyRoutes } from './modules/anomalies/anomalies.routes.js';
+import { registerSessionRoutes } from './modules/sessions/sessions.routes.js';
+import { registerWebSocketRoutes } from './websocket/index.js';
 
 /**
  * Creates and configures the Fastify application instance.
@@ -70,6 +73,7 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(rateLimiterPlugin);
   await app.register(swaggerPlugin);
   await app.register(multipartPlugin);
+  await app.register(websocketPlugin);
 
   // ── Health check (public — no auth required) ─────────────────────────────
   app.get(
@@ -142,6 +146,8 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(registerLecturerRoutes);
   await app.register(registerDeviceRoutes);
   await app.register(registerAnomalyRoutes);
+  await app.register(registerSessionRoutes);
+  registerWebSocketRoutes(app);
 
   // ── Global error handler ──────────────────────────────────────────────────
   app.setErrorHandler(errorHandler);
