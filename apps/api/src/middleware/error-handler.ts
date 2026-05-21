@@ -39,12 +39,14 @@ export class AppError extends Error {
    * @param message    - Human-readable error description.
    * @param statusCode - HTTP status code to return. Defaults to `400`.
    * @param field      - Optional field name for field-level validation errors.
+   * @param details    - Optional structured details (e.g. distance hint for geofence errors).
    */
   constructor(
     public readonly code: string,
     public override readonly message: string,
     public readonly statusCode: number = 400,
     public readonly field?: string,
+    public readonly details?: unknown,
   ) {
     super(message);
     this.name = 'AppError';
@@ -132,6 +134,7 @@ export function errorHandler(
         code: error.code,
         message: error.message,
         ...(error.field !== undefined ? { field: error.field } : {}),
+        ...(error.details !== undefined ? { details: error.details } : {}),
       },
     ];
     const response: ApiErrorResponse = {

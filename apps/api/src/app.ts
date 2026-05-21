@@ -42,6 +42,7 @@ import { registerLecturerRoutes } from './modules/lecturers/lecturers.routes.js'
 import { registerDeviceRoutes } from './modules/devices/devices.routes.js';
 import { registerAnomalyRoutes } from './modules/anomalies/anomalies.routes.js';
 import { registerSessionRoutes } from './modules/sessions/sessions.routes.js';
+import { registerAttendanceRoutes } from './modules/attendance/attendance.routes.js';
 import { registerWebSocketRoutes } from './websocket/index.js';
 
 /**
@@ -147,6 +148,7 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(registerDeviceRoutes);
   await app.register(registerAnomalyRoutes);
   await app.register(registerSessionRoutes);
+  await app.register(registerAttendanceRoutes);
   registerWebSocketRoutes(app);
 
   // ── Global error handler ──────────────────────────────────────────────────
