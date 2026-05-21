@@ -13,10 +13,12 @@
  * | PATCH  | /sessions/:id/close     | SUPER_ADMIN, HOD, LECTURER                            |
  * | PATCH  | /sessions/:id/lock      | SUPER_ADMIN only                                      |
  * | GET    | /sessions/:id/live      | SUPER_ADMIN, HOD, LECTURER                            |
+ * | POST   | /sessions/:id/qr        | SUPER_ADMIN, HOD, LECTURER                            |
+ * | POST   | /sessions/:id/code      | SUPER_ADMIN, HOD, LECTURER                            |
  *
- * Note: static sub-paths (`/sessions/:id/open`, `/close`, `/lock`, `/live`)
- * are registered before the dynamic `/:id` route to prevent Fastify from
- * matching action names as IDs.
+ * Note: static sub-paths (`/sessions/:id/open`, `/close`, `/lock`, `/live`,
+ * `/qr`, `/code`) are registered before the dynamic `/:id` route to prevent
+ * Fastify from matching action names as IDs.
  */
 
 import { type FastifyInstance } from 'fastify';
@@ -200,6 +202,46 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       },
     },
     controller.getLiveCheckinsHandler,
+  );
+
+  // ── POST /sessions/:id/qr ────────────────────────────────────────────────
+  app.post(
+    '/sessions/:id/qr',
+    {
+      preHandler: [authenticate, requireRoles(...MANAGE_ROLES)],
+      schema: {
+        tags: ['sessions'],
+        summary: 'Generate QR token for student check-in',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        response: { 201: { type: 'object', additionalProperties: true } },
+      },
+    },
+    controller.generateQrTokenHandler,
+  );
+
+  // ── POST /sessions/:id/code ──────────────────────────────────────────────
+  app.post(
+    '/sessions/:id/code',
+    {
+      preHandler: [authenticate, requireRoles(...MANAGE_ROLES)],
+      schema: {
+        tags: ['sessions'],
+        summary: 'Generate alphanumeric code for student check-in',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        response: { 201: { type: 'object', additionalProperties: true } },
+      },
+    },
+    controller.generateSessionCodeHandler,
   );
 
   // ── GET /sessions/:id ────────────────────────────────────────────────────

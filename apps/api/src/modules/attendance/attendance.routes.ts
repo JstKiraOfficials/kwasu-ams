@@ -4,10 +4,12 @@
  *
  * Fastify route registrations for the attendance module.
  *
- * | Method | Path                     | Roles   | Description                              |
- * |--------|--------------------------|---------|------------------------------------------|
- * | POST   | /attendance/checkin/gps  | STUDENT | GPS direct check-in with geofence        |
- * | GET    | /attendance              | STUDENT | List own attendance records (paginated)  |
+ * | Method | Path                      | Roles   | Description                              |
+ * |--------|---------------------------|---------|------------------------------------------|
+ * | POST   | /attendance/checkin/gps   | STUDENT | GPS direct check-in with geofence        |
+ * | POST   | /attendance/checkin/qr    | STUDENT | QR code check-in                         |
+ * | POST   | /attendance/checkin/code  | STUDENT | Alphanumeric code check-in               |
+ * | GET    | /attendance               | STUDENT | List own attendance records (paginated)  |
  *
  * Guard chain for all routes: `authenticate → requireRoles(STUDENT)`.
  */
@@ -16,7 +18,12 @@ import { type FastifyInstance } from 'fastify';
 import { authenticate } from '../../middleware/authenticate.js';
 import { requireRoles } from '../../middleware/role-guard.js';
 import { Role } from '@kwasu-ams/types';
-import { checkInGpsHandler, listAttendanceHandler } from './attendance.controller.js';
+import {
+  checkInGpsHandler,
+  checkInQrHandler,
+  checkInCodeHandler,
+  listAttendanceHandler,
+} from './attendance.controller.js';
 
 /**
  * Registers all attendance routes on the provided Fastify instance.
@@ -48,12 +55,65 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
             deviceRooted: { type: 'boolean', default: false },
           },
         },
-        response: {
-          201: { type: 'object', additionalProperties: true },
-        },
+        response: { 201: { type: 'object', additionalProperties: true } },
       },
     },
     checkInGpsHandler,
+  );
+
+  // ── POST /attendance/checkin/qr ──────────────────────────────────────────
+  app.post(
+    '/attendance/checkin/qr',
+    {
+      preHandler: [authenticate, requireRoles(Role.STUDENT)],
+      schema: {
+        tags: ['attendance'],
+        summary: 'QR code check-in',
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['qrToken', 'latitude', 'longitude', 'deviceFingerprint'],
+          properties: {
+            qrToken: { type: 'string', minLength: 1 },
+            latitude: { type: 'number', minimum: -90, maximum: 90 },
+            longitude: { type: 'number', minimum: -180, maximum: 180 },
+            deviceFingerprint: { type: 'string', minLength: 1 },
+            mockLocationEnabled: { type: 'boolean', default: false },
+            deviceRooted: { type: 'boolean', default: false },
+          },
+        },
+        response: { 201: { type: 'object', additionalProperties: true } },
+      },
+    },
+    checkInQrHandler,
+  );
+
+  // ── POST /attendance/checkin/code ────────────────────────────────────────
+  app.post(
+    '/attendance/checkin/code',
+    {
+      preHandler: [authenticate, requireRoles(Role.STUDENT)],
+      schema: {
+        tags: ['attendance'],
+        summary: 'Alphanumeric code check-in',
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['sessionId', 'code', 'latitude', 'longitude', 'deviceFingerprint'],
+          properties: {
+            sessionId: { type: 'string', format: 'uuid' },
+            code: { type: 'string', minLength: 6, maxLength: 8 },
+            latitude: { type: 'number', minimum: -90, maximum: 90 },
+            longitude: { type: 'number', minimum: -180, maximum: 180 },
+            deviceFingerprint: { type: 'string', minLength: 1 },
+            mockLocationEnabled: { type: 'boolean', default: false },
+            deviceRooted: { type: 'boolean', default: false },
+          },
+        },
+        response: { 201: { type: 'object', additionalProperties: true } },
+      },
+    },
+    checkInCodeHandler,
   );
 
   // ── GET /attendance ──────────────────────────────────────────────────────
@@ -78,9 +138,7 @@ export async function registerAttendanceRoutes(app: FastifyInstance): Promise<vo
             pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
           },
         },
-        response: {
-          200: { type: 'object', additionalProperties: true },
-        },
+        response: { 200: { type: 'object', additionalProperties: true } },
       },
     },
     listAttendanceHandler,

@@ -14,6 +14,8 @@ import { type Role } from '@kwasu-ams/types';
 import { CreateSessionSchema, ListSessionsQuerySchema } from './sessions.schema.js';
 import * as sessionsService from './sessions.service.js';
 import * as lifecycleService from './session-lifecycle.service.js';
+import { generateQrToken } from '../attendance/checkin-qr.service.js';
+import { generateSessionCode } from '../attendance/checkin-code.service.js';
 
 /**
  * Handles `GET /sessions`.
@@ -170,4 +172,48 @@ export async function getLiveCheckinsHandler(
   const { id } = request.params as { id: string };
   const result = await sessionsService.getLiveCheckins(id);
   void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /sessions/:id/qr`.
+ *
+ * Generates a new signed QR token for the given session. Invalidates the
+ * previous token in Redis before storing the new one.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the session.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404)          — session does not exist.
+ * @throws {AppError} `SESSION_NOT_ACTIVE` (400) — session is not in `ACTIVE` state.
+ */
+export async function generateQrTokenHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const result = await generateQrToken(id, request.user!.userId);
+  void reply.status(201).send(result);
+}
+
+/**
+ * Handles `POST /sessions/:id/code`.
+ *
+ * Generates a new 6-character alphanumeric code for the given session.
+ * Stores the code in Redis with a 15-minute TTL.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the session.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404)          — session does not exist.
+ * @throws {AppError} `SESSION_NOT_ACTIVE` (400) — session is not in `ACTIVE` state.
+ */
+export async function generateSessionCodeHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const result = await generateSessionCode(id, request.user!.userId);
+  void reply.status(201).send(result);
 }

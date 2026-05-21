@@ -17,9 +17,9 @@
  * - Spoofing flags produce `PENDING_REVIEW` status, not auto-rejection.
  * - Concurrent session detection blocks check-in and raises an anomaly flag.
  *
- * Velocity spoofing check is intentionally skipped: previous GPS coordinates
- * are never stored (NDPA compliance), so the server has no prior coordinates
- * to compute velocity against.
+ * Geofence validation, spoofing detection, and anomaly-type mapping are
+ * delegated to `checkin-helpers.ts` so they can be shared with the QR and
+ * alphanumeric code check-in services.
  */
 
 import {
@@ -28,165 +28,16 @@ import {
   CheckInMethod,
   type IAttendanceRecord,
 } from '@kwasu-ams/types';
-import {
-  validateGeofence,
-  isWithinNigeriaBounds,
-  checkSpoofing,
-  type SpoofingFlag,
-} from '@kwasu-ams/utils';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import { AppError } from '../../middleware/error-handler.js';
 import { createAnomalyFlag } from '../anomalies/anomalies.service.js';
 import { type GpsCheckinInput } from './attendance.schema.js';
-
-// =============================================================================
-// Internal interfaces
-// =============================================================================
-
-/**
- * Result returned by the private geofence validation helper.
- */
-interface GeofenceValidationResult {
-  /** Whether the student's coordinates are inside the venue geofence. */
-  inside: boolean;
-  /** Straight-line distance from the student to the venue centre, in metres. */
-  distanceMetres: number;
-  /** Human-readable venue name for error messages. */
-  venueName: string;
-}
-
-/**
- * Input for the private spoofing detection helper.
- */
-interface SpoofingDetectionInput {
-  /** UUID of the `Student` record (not the `User`). */
-  studentId: string;
-  /** Student-submitted latitude. */
-  latitude: number;
-  /** Student-submitted longitude. */
-  longitude: number;
-  /** Whether the device reported mock location is enabled. */
-  mockLocationEnabled: boolean;
-  /** Whether the device reported it is rooted/jailbroken. */
-  deviceRooted: boolean;
-  /** Timestamp of the current check-in attempt. */
-  currentTimestamp: Date;
-}
-
-/**
- * Result returned by the private spoofing detection helper.
- */
-interface SpoofingDetectionResult {
-  /** `true` if any spoofing signal was detected. */
-  isSuspicious: boolean;
-  /** List of detected spoofing flag strings. */
-  flags: SpoofingFlag[];
-}
-
-// =============================================================================
-// Private helpers
-// =============================================================================
-
-/**
- * Validates that the student's GPS coordinates are within the venue geofence
- * for the given session.
- *
- * Steps:
- * 1. Fetches the session with its venue from the database.
- * 2. Rejects coordinates outside Nigeria's bounding box before Haversine runs.
- * 3. Runs the Haversine formula via `validateGeofence()` from `@kwasu-ams/utils`.
- *
- * @param studentLat - Student-submitted latitude.
- * @param studentLng - Student-submitted longitude.
- * @param sessionId  - UUID of the `CourseSession` to validate against.
- * @returns A {@link GeofenceValidationResult} with `inside`, `distanceMetres`, and `venueName`.
- * @throws {AppError} `NOT_FOUND` (404) — session does not exist.
- * @throws {AppError} `OUTSIDE_GEOFENCE` (400) — coordinates are outside Nigeria's bounding box.
- */
-async function validateStudentGeofence(
-  studentLat: number,
-  studentLng: number,
-  sessionId: string,
-): Promise<GeofenceValidationResult> {
-  const session = await prisma.courseSession.findUnique({
-    where: { id: sessionId },
-    include: { venue: true },
-  });
-
-  if (!session) {
-    throw new AppError('NOT_FOUND', 'Session not found.', 404);
-  }
-
-  if (!isWithinNigeriaBounds(studentLat, studentLng)) {
-    throw new AppError('OUTSIDE_GEOFENCE', 'Location outside Nigeria.', 400);
-  }
-
-  const result = validateGeofence({
-    studentLat,
-    studentLng,
-    venueLat: session.venue.latitude,
-    venueLng: session.venue.longitude,
-    radiusMetres: session.venue.geofenceRadius,
-    venueName: session.venue.name,
-  });
-
-  return {
-    inside: result.inside,
-    distanceMetres: result.distanceMetres,
-    venueName: result.venue,
-  };
-}
-
-/**
- * Runs all applicable server-side GPS spoofing checks against the submitted
- * coordinates.
- *
- * Checks performed:
- * - Precision spoofing (> 8 decimal places)
- * - Mock location flag
- * - Nigeria bounds (coordinates outside Nigeria)
- *
- * Velocity spoofing is intentionally skipped because previous GPS coordinates
- * are never stored (NDPA compliance), so no prior position is available.
- *
- * @param input - {@link SpoofingDetectionInput} containing coordinates and device flags.
- * @returns A {@link SpoofingDetectionResult} with `isSuspicious` and `flags`.
- */
-async function detectSpoofing(input: SpoofingDetectionInput): Promise<SpoofingDetectionResult> {
-  // Velocity check requires previous GPS coordinates which are never stored.
-  // Pass undefined for previous coordinates — only precision, mock location,
-  // and Nigeria bounds checks will run.
-  const result = checkSpoofing({
-    latitude: input.latitude,
-    longitude: input.longitude,
-    mockLocationEnabled: input.mockLocationEnabled,
-    currentTimestamp: input.currentTimestamp,
-  });
-
-  return { isSuspicious: result.isSuspicious, flags: result.flags };
-}
-
-// =============================================================================
-// Map spoofing flag strings to AnomalyType enum values
-// =============================================================================
-
-/**
- * Maps a `SpoofingFlag` string from `checkSpoofing()` to the corresponding
- * `AnomalyType` enum value used when creating `AnomalyFlag` records.
- *
- * @param flag - A spoofing flag string returned by `checkSpoofing()`.
- * @returns The matching {@link AnomalyType}, or `undefined` if unmapped.
- */
-function spoofingFlagToAnomalyType(flag: SpoofingFlag): AnomalyType | undefined {
-  const map: Record<SpoofingFlag, AnomalyType> = {
-    PRECISION_SPOOFING: AnomalyType.GPS_PRECISION_SPOOFING,
-    VELOCITY_SPOOFING: AnomalyType.GPS_VELOCITY_SPOOFING,
-    MOCK_LOCATION: AnomalyType.MOCK_LOCATION_DETECTED,
-    OUTSIDE_NIGERIA: AnomalyType.OUTSIDE_NIGERIA_BOUNDS,
-  };
-  return map[flag];
-}
+import {
+  validateStudentGeofence,
+  detectSpoofing,
+  spoofingFlagToAnomalyType,
+} from './checkin-helpers.js';
 
 // =============================================================================
 // checkInGps — public service function
@@ -212,12 +63,12 @@ function spoofingFlagToAnomalyType(flag: SpoofingFlag): AnomalyType | undefined 
  * @param studentUserId - UUID of the authenticated `User` (not the `Student` record).
  * @param data          - Validated GPS check-in payload from {@link GpsCheckinSchema}.
  * @returns The created or updated {@link IAttendanceRecord}.
- * @throws {AppError} `NOT_FOUND` (404)         — student or session does not exist.
- * @throws {AppError} `SESSION_CLOSED` (400)    — session is not in `ACTIVE` state.
- * @throws {AppError} `FORBIDDEN` (403)         — student is not enrolled in this course.
- * @throws {AppError} `CONFLICT` (409)          — student already has `PRESENT` status for this session.
+ * @throws {AppError} `NOT_FOUND` (404)          — student or session does not exist.
+ * @throws {AppError} `SESSION_CLOSED` (400)     — session is not in `ACTIVE` state.
+ * @throws {AppError} `FORBIDDEN` (403)          — student is not enrolled in this course.
+ * @throws {AppError} `CONFLICT` (409)           — student already has `PRESENT` status for this session.
  * @throws {AppError} `CONCURRENT_SESSION` (400) — student is already `PRESENT` in another active session.
- * @throws {AppError} `OUTSIDE_GEOFENCE` (400)  — student is outside the venue geofence.
+ * @throws {AppError} `OUTSIDE_GEOFENCE` (400)   — student is outside the venue geofence.
  */
 export async function checkInGps(
   studentUserId: string,
@@ -245,10 +96,7 @@ export async function checkInGps(
 
   // ── Step 3: Verify enrollment ────────────────────────────────────────────
   const enrollment = await prisma.courseEnrollment.findFirst({
-    where: {
-      studentId: student.id,
-      courseSectionId: session.courseSectionId,
-    },
+    where: { studentId: student.id, courseSectionId: session.courseSectionId },
   });
   if (!enrollment) {
     throw new AppError('FORBIDDEN', 'You are not enrolled in this course.', 403);
@@ -256,12 +104,7 @@ export async function checkInGps(
 
   // ── Step 4: Check for duplicate check-in ────────────────────────────────
   const existing = await prisma.attendanceRecord.findUnique({
-    where: {
-      studentId_sessionId: {
-        studentId: student.id,
-        sessionId: data.sessionId,
-      },
-    },
+    where: { studentId_sessionId: { studentId: student.id, sessionId: data.sessionId } },
   });
   if (existing?.status === AttendanceStatus.PRESENT) {
     throw new AppError('CONFLICT', 'Already checked in to this session.', 409);
@@ -272,10 +115,7 @@ export async function checkInGps(
     where: {
       studentId: student.id,
       status: AttendanceStatus.PRESENT,
-      session: {
-        status: 'ACTIVE',
-        id: { not: data.sessionId },
-      },
+      session: { status: 'ACTIVE', id: { not: data.sessionId } },
     },
   });
   if (concurrentRecord) {
@@ -301,13 +141,11 @@ export async function checkInGps(
     data.longitude,
     data.sessionId,
   );
-
   if (!geofenceResult.inside) {
     const hint =
       geofenceResult.distanceMetres <= 200
         ? `You are ${geofenceResult.distanceMetres}m from the venue.`
         : undefined;
-
     throw new AppError(
       'OUTSIDE_GEOFENCE',
       'You must be physically inside the lecture venue to mark attendance.',
@@ -353,12 +191,7 @@ export async function checkInGps(
   // ── Step 10: Upsert AttendanceRecord (no GPS coordinates stored) ─────────
   const now = new Date();
   const record = await prisma.attendanceRecord.upsert({
-    where: {
-      studentId_sessionId: {
-        studentId: student.id,
-        sessionId: data.sessionId,
-      },
-    },
+    where: { studentId_sessionId: { studentId: student.id, sessionId: data.sessionId } },
     create: {
       studentId: student.id,
       sessionId: data.sessionId,
