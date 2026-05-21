@@ -26,6 +26,7 @@ import { addHours } from '@kwasu-ams/utils';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import { AppError } from '../../middleware/error-handler.js';
+import { anomalyDetectionQueue } from '../../jobs/queue.js';
 
 // =============================================================================
 // Internal helpers
@@ -240,8 +241,9 @@ export async function closeSession(
     JSON.stringify({ event: 'SESSION_CLOSED', sessionId, absentCount: absentStudents.length }),
   );
 
-  // TODO Phase 27: enqueue anomaly detection job
-  // void anomalyDetectionQueue.add('detect', { sessionId });
+  // Enqueue anomaly detection job with 5-second delay to ensure all
+  // check-in records are committed before the worker reads them.
+  void anomalyDetectionQueue.add('detect', { sessionId }, { delay: 5000 });
 
   void writeAuditLog(actorId, 'LECTURER', 'SESSION_CLOSED', 'CourseSession', sessionId, {
     absentCount: absentStudents.length,

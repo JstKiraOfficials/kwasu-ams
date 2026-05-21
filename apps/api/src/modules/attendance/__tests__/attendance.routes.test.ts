@@ -68,6 +68,19 @@ vi.mock('../../../lib/redis.js', () => ({
   connectRedis: vi.fn(),
 }));
 
+// Mock BullMQ so the anomaly-detection queue import doesn't try to connect
+vi.mock('bullmq', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Queue: vi.fn().mockImplementation(function (this: any) {
+    this.add = vi.fn().mockResolvedValue({});
+    this.on = vi.fn();
+  }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Worker: vi.fn().mockImplementation(function (this: any) {
+    this.on = vi.fn();
+  }),
+}));
+
 vi.mock('../../anomalies/anomalies.service.js', () => ({
   createAnomalyFlag: vi.fn().mockResolvedValue({}),
 }));
