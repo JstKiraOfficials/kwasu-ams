@@ -4,21 +4,24 @@
  *
  * Fastify route registrations for the sessions module.
  *
- * | Method | Path                    | Roles allowed                                         |
- * |--------|-------------------------|-------------------------------------------------------|
- * | GET    | /sessions               | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD, LECTURER    |
- * | GET    | /sessions/:id           | Above roles + STUDENT                                 |
- * | POST   | /sessions               | SUPER_ADMIN, HOD, LECTURER                            |
- * | PATCH  | /sessions/:id/open      | SUPER_ADMIN, HOD, LECTURER                            |
- * | PATCH  | /sessions/:id/close     | SUPER_ADMIN, HOD, LECTURER                            |
- * | PATCH  | /sessions/:id/lock      | SUPER_ADMIN only                                      |
- * | GET    | /sessions/:id/live      | SUPER_ADMIN, HOD, LECTURER                            |
- * | POST   | /sessions/:id/qr        | SUPER_ADMIN, HOD, LECTURER                            |
- * | POST   | /sessions/:id/code      | SUPER_ADMIN, HOD, LECTURER                            |
+ * | Method | Path                                          | Roles allowed                                      |
+ * |--------|-----------------------------------------------|----------------------------------------------------|
+ * | GET    | /sessions                                     | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD, LECTURER |
+ * | GET    | /sessions/:id                                 | Above roles + STUDENT                              |
+ * | POST   | /sessions                                     | SUPER_ADMIN, HOD, LECTURER                         |
+ * | PATCH  | /sessions/:id/open                            | SUPER_ADMIN, HOD, LECTURER                         |
+ * | PATCH  | /sessions/:id/close                           | SUPER_ADMIN, HOD, LECTURER                         |
+ * | PATCH  | /sessions/:id/lock                            | SUPER_ADMIN only                                   |
+ * | GET    | /sessions/:id/live                            | SUPER_ADMIN, HOD, LECTURER                         |
+ * | POST   | /sessions/:id/qr                              | SUPER_ADMIN, HOD, LECTURER                         |
+ * | POST   | /sessions/:id/code                            | SUPER_ADMIN, HOD, LECTURER                         |
+ * | PATCH  | /sessions/:id/attendance/:studentId/override  | SUPER_ADMIN, HOD, LECTURER                         |
+ * | GET    | /sessions/:id/overrides                       | SUPER_ADMIN, HOD, LECTURER                         |
+ * | POST   | /overrides/:id/approve                        | SUPER_ADMIN only                                   |
+ * | POST   | /overrides/:id/reject                         | SUPER_ADMIN only                                   |
  *
- * Note: static sub-paths (`/sessions/:id/open`, `/close`, `/lock`, `/live`,
- * `/qr`, `/code`) are registered before the dynamic `/:id` route to prevent
- * Fastify from matching action names as IDs.
+ * Note: static sub-paths are registered before the dynamic `/:id` route to
+ * prevent Fastify from matching action names as IDs.
  */
 
 import { type FastifyInstance } from 'fastify';
@@ -242,6 +245,112 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       },
     },
     controller.generateSessionCodeHandler,
+  );
+
+  // ── PATCH /sessions/:id/attendance/:studentId/override ──────────────────
+  app.patch(
+    '/sessions/:id/attendance/:studentId/override',
+    {
+      preHandler: [authenticate, requireRoles(...MANAGE_ROLES)],
+      schema: {
+        tags: ['sessions'],
+        summary: 'Create a manual attendance override for a student',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id', 'studentId'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            studentId: { type: 'string', format: 'uuid' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['status', 'justification'],
+          properties: {
+            status: { type: 'string', enum: ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'] },
+            justification: { type: 'string', minLength: 20 },
+          },
+        },
+        response: {
+          200: { type: 'object', additionalProperties: true },
+        },
+      },
+    },
+    controller.createOverrideHandler,
+  );
+
+  // ── GET /sessions/:id/overrides ──────────────────────────────────────────
+  app.get(
+    '/sessions/:id/overrides',
+    {
+      preHandler: [authenticate, requireRoles(...MANAGE_ROLES)],
+      schema: {
+        tags: ['sessions'],
+        summary: 'List all manual overrides for a session',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        response: {
+          200: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        },
+      },
+    },
+    controller.listOverridesHandler,
+  );
+
+  // ── POST /overrides/:id/approve ──────────────────────────────────────────
+  app.post(
+    '/overrides/:id/approve',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['sessions'],
+        summary: 'Approve a pending manual override — SUPER_ADMIN only',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        response: {
+          200: { type: 'object', additionalProperties: true },
+        },
+      },
+    },
+    controller.approveOverrideHandler,
+  );
+
+  // ── POST /overrides/:id/reject ───────────────────────────────────────────
+  app.post(
+    '/overrides/:id/reject',
+    {
+      preHandler: [authenticate, requireRoles(Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['sessions'],
+        summary: 'Reject a pending manual override — SUPER_ADMIN only',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', format: 'uuid' } },
+        },
+        body: {
+          type: 'object',
+          required: ['reason'],
+          properties: {
+            reason: { type: 'string', minLength: 5 },
+          },
+        },
+        response: {
+          200: { type: 'object', additionalProperties: true },
+        },
+      },
+    },
+    controller.rejectOverrideHandler,
   );
 
   // ── GET /sessions/:id ────────────────────────────────────────────────────

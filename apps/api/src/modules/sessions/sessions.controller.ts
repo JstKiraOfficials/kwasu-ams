@@ -11,9 +11,15 @@
 
 import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { type Role } from '@kwasu-ams/types';
-import { CreateSessionSchema, ListSessionsQuerySchema } from './sessions.schema.js';
+import {
+  CreateSessionSchema,
+  ListSessionsQuerySchema,
+  CreateOverrideSchema,
+  RejectOverrideSchema,
+} from './sessions.schema.js';
 import * as sessionsService from './sessions.service.js';
 import * as lifecycleService from './session-lifecycle.service.js';
+import * as overrideService from './override.service.js';
 import { generateQrToken } from '../attendance/checkin-qr.service.js';
 import { generateSessionCode } from '../attendance/checkin-code.service.js';
 
@@ -216,4 +222,112 @@ export async function generateSessionCodeHandler(
   const { id } = request.params as { id: string };
   const result = await generateSessionCode(id, request.user!.userId);
   void reply.status(201).send(result);
+}
+
+/**
+ * Handles `PATCH /sessions/:id/attendance/:studentId/override`.
+ *
+ * Creates a manual attendance override for a student in a closed session.
+ * Within the 48-hour window the `AttendanceRecord` is updated immediately.
+ * Beyond the window a pending `ManualOverride` is created for `SUPER_ADMIN`
+ * approval.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL params: `id` (session UUID), `studentId` (student UUID).
+ *                  Body: `{ status: AttendanceStatus, justification: string }`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404)          — session or attendance record not found.
+ * @throws {AppError} `SESSION_NOT_ACTIVE` (400) — session is still SCHEDULED or ACTIVE.
+ * @throws {AppError} `VALIDATION_ERROR` (400)   — justification shorter than 20 characters.
+ */
+export async function createOverrideHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id, studentId } = request.params as { id: string; studentId: string };
+  const body = CreateOverrideSchema.parse(request.body);
+  const result = await overrideService.createOverride(
+    id,
+    studentId,
+    {
+      status: body.status as import('@kwasu-ams/types').AttendanceStatus,
+      justification: body.justification,
+    },
+    request.user!.userId,
+    request.user!.role as Role,
+  );
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `GET /sessions/:id/overrides`.
+ *
+ * Returns all manual overrides for a session, scope-aware.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the session.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — session does not exist.
+ * @throws {AppError} `FORBIDDEN` (403) — actor does not have scope access to this session.
+ */
+export async function listOverridesHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const result = await overrideService.listOverrides(
+    id,
+    request.user!.role as Role,
+    request.user!.userId,
+    request.user!.scopeId ?? null,
+  );
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /overrides/:id/approve`.
+ *
+ * Approves a pending manual override. `SUPER_ADMIN` only.
+ * Applies the override's `afterStatus` to the linked `AttendanceRecord`.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the `ManualOverride`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — override does not exist.
+ * @throws {AppError} `CONFLICT` (409)  — override does not require approval or is already processed.
+ */
+export async function approveOverrideHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const result = await overrideService.approveOverride(id, request.user!.userId);
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `POST /overrides/:id/reject`.
+ *
+ * Rejects a pending manual override. `SUPER_ADMIN` only.
+ * Records the rejection reason without modifying the `AttendanceRecord`.
+ *
+ * @param request - Fastify request with `request.user` set by `authenticate`.
+ *                  URL param: `id` — UUID of the `ManualOverride`.
+ *                  Body: `{ reason: string }`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ * @throws {AppError} `NOT_FOUND` (404) — override does not exist.
+ * @throws {AppError} `CONFLICT` (409)  — override does not require approval or is already processed.
+ */
+export async function rejectOverrideHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { id } = request.params as { id: string };
+  const body = RejectOverrideSchema.parse(request.body);
+  const result = await overrideService.rejectOverride(id, body.reason, request.user!.userId);
+  void reply.status(200).send(result);
 }

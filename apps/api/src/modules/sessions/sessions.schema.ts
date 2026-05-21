@@ -62,3 +62,33 @@ export const ListSessionsQuerySchema = z.object({
 
 /** TypeScript type inferred from {@link ListSessionsQuerySchema}. */
 export type ListSessionsQuery = z.infer<typeof ListSessionsQuerySchema>;
+
+/**
+ * Schema for the body of `PATCH /sessions/:id/attendance/:studentId/override`.
+ *
+ * - `status`        — Target attendance status. Must be one of `PRESENT`,
+ *                     `ABSENT`, `EXCUSED`, or `LATE`. `PENDING_REVIEW` and
+ *                     `MANUAL_OVERRIDE` are excluded as direct override targets.
+ * - `justification` — Free-text reason. Minimum 20 characters.
+ */
+export const CreateOverrideSchema = z.object({
+  status: z.enum(['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'] as const, {
+    error: 'status must be one of PRESENT, ABSENT, EXCUSED, LATE',
+  }),
+  justification: z.string().min(20, 'Justification must be at least 20 characters'),
+});
+
+/** TypeScript type inferred from {@link CreateOverrideSchema}. */
+export type CreateOverrideInput = z.infer<typeof CreateOverrideSchema>;
+
+/**
+ * Schema for the body of `POST /overrides/:id/reject`.
+ *
+ * - `reason` — Human-readable rejection reason. Minimum 5 characters.
+ */
+export const RejectOverrideSchema = z.object({
+  reason: z.string().min(5, 'Rejection reason must be at least 5 characters'),
+});
+
+/** TypeScript type inferred from {@link RejectOverrideSchema}. */
+export type RejectOverrideInput = z.infer<typeof RejectOverrideSchema>;
