@@ -168,7 +168,15 @@ describe('GET /anomalies', () => {
     expect(prisma.anomalyFlag.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          session: { lecturer: { userId: LECTURER_USER_ID } },
+          student: {
+            enrollments: {
+              some: {
+                courseSection: {
+                  lecturerId: LECTURER_USER_ID,
+                },
+              },
+            },
+          },
         }),
       }),
     );

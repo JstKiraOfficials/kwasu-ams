@@ -78,7 +78,7 @@ export function registerSessionWebSocket(app: FastifyInstance): void {
     void subscriber.subscribe(checkinChannel, lifecycleChannel);
 
     // Forward Redis messages to the WebSocket client
-    subscriber.on('message', (channel: string, message: string) => {
+    subscriber.on('message', (_channel: string, message: string) => {
       if (socket.readyState === socket.OPEN) {
         socket.send(message);
 

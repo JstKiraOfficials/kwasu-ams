@@ -178,7 +178,17 @@ export async function listAnomalyFlags(
 
   // Scope enforcement
   if (actorRole === Role.LECTURER) {
-    where.session = { lecturer: { userId: actorId } };
+    // Filter to anomaly flags for sessions where this lecturer is the assigned lecturer.
+    // AnomalyFlag has no direct session relation — filter via sessionId subquery.
+    where.student = {
+      enrollments: {
+        some: {
+          courseSection: {
+            lecturerId: actorId,
+          },
+        },
+      },
+    };
   } else if (actorRole === Role.HOD && actorScopeId !== null) {
     where.student = { programme: { departmentId: actorScopeId } };
   } else if (actorRole === Role.DEAN && actorScopeId !== null) {

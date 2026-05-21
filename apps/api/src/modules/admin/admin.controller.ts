@@ -357,14 +357,15 @@ export async function createSemesterHandler(
       type: body.type,
       startDate: new Date(body.startDate),
       endDate: new Date(body.endDate),
-      examStartDate: body.examStartDate !== undefined ? new Date(body.examStartDate) : undefined,
-      eligibilityComputeDate:
-        body.eligibilityComputeDate !== undefined
-          ? new Date(body.eligibilityComputeDate)
-          : undefined,
-      eligibilityThreshold: body.eligibilityThreshold,
-      appealWindowDays: body.appealWindowDays,
-      maxApprovedExcuses: body.maxApprovedExcuses,
+      ...(body.examStartDate !== undefined && { examStartDate: new Date(body.examStartDate) }),
+      ...(body.eligibilityComputeDate !== undefined && {
+        eligibilityComputeDate: new Date(body.eligibilityComputeDate),
+      }),
+      ...(body.eligibilityThreshold !== undefined && {
+        eligibilityThreshold: body.eligibilityThreshold,
+      }),
+      ...(body.appealWindowDays !== undefined && { appealWindowDays: body.appealWindowDays }),
+      ...(body.maxApprovedExcuses !== undefined && { maxApprovedExcuses: body.maxApprovedExcuses }),
     },
     request.user!.userId,
   );
