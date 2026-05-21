@@ -1,7 +1,27 @@
 /**
  * Vitest global setup — injects test environment variables before any test module loads.
  * This runs before env.ts is imported, preventing t3-env validation failures.
+ *
+ * Also mocks BullMQ globally so Queue/Worker constructors don't attempt real
+ * Redis connections when session-lifecycle.service.ts is imported transitively
+ * by any test that calls createApp().
  */
+
+import { vi } from 'vitest';
+
+// Mock BullMQ globally — must be done before any module that imports bullmq is loaded.
+// Queue and Worker are used in jobs/queue.ts and anomaly-detection.worker.ts.
+vi.mock('bullmq', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Queue: vi.fn().mockImplementation(function (this: any) {
+    this.add = vi.fn().mockResolvedValue({});
+    this.on = vi.fn();
+  }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Worker: vi.fn().mockImplementation(function (this: any) {
+    this.on = vi.fn();
+  }),
+}));
 
 // ── Server ────────────────────────────────────────────────────────────────
 process.env['NODE_ENV'] = 'test';
