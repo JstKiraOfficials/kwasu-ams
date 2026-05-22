@@ -13,6 +13,7 @@
  * and passes them to the service.
  */
 
+import { Buffer } from 'buffer';
 import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { type Role } from '@kwasu-ams/types';
 import {
