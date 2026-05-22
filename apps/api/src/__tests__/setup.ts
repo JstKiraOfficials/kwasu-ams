@@ -1,16 +1,17 @@
 /**
+ * @file setup.ts
+ * @module __tests__
+ *
  * Vitest global setup — injects test environment variables before any test module loads.
  * This runs before env.ts is imported, preventing t3-env validation failures.
  *
- * Also mocks BullMQ globally so Queue/Worker constructors don't attempt real
- * Redis connections when session-lifecycle.service.ts is imported transitively
- * by any test that calls createApp().
+ * Also mocks BullMQ and firebase-admin globally so their constructors don't
+ * attempt real connections when modules are imported transitively by tests.
  */
 
 import { vi } from 'vitest';
 
 // Mock BullMQ globally — must be done before any module that imports bullmq is loaded.
-// Queue and Worker are used in jobs/queue.ts and anomaly-detection.worker.ts.
 vi.mock('bullmq', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Queue: vi.fn().mockImplementation(function (this: any) {
@@ -21,6 +22,18 @@ vi.mock('bullmq', () => ({
   Worker: vi.fn().mockImplementation(function (this: any) {
     this.on = vi.fn();
   }),
+}));
+
+// Mock firebase-admin globally — prevents FCM from parsing the fake private key.
+vi.mock('firebase-admin', () => ({
+  default: {
+    apps: [],
+    initializeApp: vi.fn(),
+    credential: { cert: vi.fn().mockReturnValue({}) },
+    messaging: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue('message-id'),
+    }),
+  },
 }));
 
 // ── Server ────────────────────────────────────────────────────────────────
