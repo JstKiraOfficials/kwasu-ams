@@ -20,6 +20,42 @@ import { connectRedis, redis } from './lib/redis.js';
 import { prisma } from './lib/prisma.js';
 import { env } from './config/env.js';
 
+// ── BullMQ workers (registered at startup) ───────────────────────────────────
+import './jobs/workers/audit-log.worker.js';
+import './jobs/workers/notification-dispatch.worker.js';
+import './jobs/workers/anomaly-detection.worker.js';
+import './jobs/workers/eligibility-computation.worker.js';
+import './jobs/workers/early-intervention.worker.js';
+import './jobs/workers/lecturer-accountability.worker.js';
+import './jobs/workers/welfare-check.worker.js';
+import './jobs/workers/weekly-summary.worker.js';
+import './jobs/workers/semester-reports.worker.js';
+import './jobs/workers/class-register-pdf.worker.js';
+import './jobs/workers/student-report-card.worker.js';
+import './jobs/workers/bulk-account-creation.worker.js';
+
+// ── BullMQ schedulers ─────────────────────────────────────────────────────────
+import { registerWeeklySchedulers } from './jobs/schedulers/weekly-scheduler.js';
+import { registerSemesterEndScheduler } from './jobs/schedulers/semester-end-scheduler.js';
+
+// ── BullMQ workers (registered at startup) ───────────────────────────────────
+import './jobs/workers/audit-log.worker.js';
+import './jobs/workers/notification-dispatch.worker.js';
+import './jobs/workers/anomaly-detection.worker.js';
+import './jobs/workers/eligibility-computation.worker.js';
+import './jobs/workers/early-intervention.worker.js';
+import './jobs/workers/lecturer-accountability.worker.js';
+import './jobs/workers/welfare-check.worker.js';
+import './jobs/workers/weekly-summary.worker.js';
+import './jobs/workers/semester-reports.worker.js';
+import './jobs/workers/class-register-pdf.worker.js';
+import './jobs/workers/student-report-card.worker.js';
+import './jobs/workers/bulk-account-creation.worker.js';
+
+// ── BullMQ schedulers ─────────────────────────────────────────────────────────
+import { registerWeeklySchedulers } from './jobs/schedulers/weekly-scheduler.js';
+import { registerSemesterEndScheduler } from './jobs/schedulers/semester-end-scheduler.js';
+
 /**
  * Bootstraps the API server: connects Redis, starts Fastify, and registers
  * graceful shutdown handlers.
@@ -27,6 +63,14 @@ import { env } from './config/env.js';
 async function main(): Promise<void> {
   // Connect to Redis before starting the server
   await connectRedis();
+
+  // Register BullMQ schedulers
+  await registerWeeklySchedulers();
+  await registerSemesterEndScheduler();
+
+  // Register BullMQ schedulers
+  await registerWeeklySchedulers();
+  await registerSemesterEndScheduler();
 
   const app = await createApp();
 
