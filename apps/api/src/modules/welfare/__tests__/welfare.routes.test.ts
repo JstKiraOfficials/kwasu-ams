@@ -140,7 +140,11 @@ beforeEach(() => {
 describe('POST /welfare/check/:studentId', () => {
   it('returns needsReferral=true when student has 3+ courses below 70%', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(HOD_DB as never);
-    vi.mocked(prisma.student.findUnique).mockResolvedValue({ id: STUDENT_ID } as never);
+    vi.mocked(prisma.student.findUnique).mockResolvedValue({
+      id: STUDENT_ID,
+      user: { id: 'u-student-1', fullName: 'Test Student' },
+      programme: { departmentId: 'dept-1' },
+    } as never);
     vi.mocked(prisma.examEligibility.findMany).mockResolvedValue([
       makeEligibility('BIO201'),
       makeEligibility('BIO202'),

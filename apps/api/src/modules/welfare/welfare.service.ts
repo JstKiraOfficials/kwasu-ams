@@ -126,7 +126,7 @@ export async function triggerWelfareReferral(
       programme: { select: { departmentId: true } },
     },
   });
-  if (!student) return;
+  if (!student?.user) return;
 
   // Enqueue compassionate notification to student (no percentages or course names)
   void notificationQueue.add('dispatch', {
