@@ -48,6 +48,9 @@ import { registerEligibilityRoutes } from './modules/eligibility/eligibility.rou
 import { registerNotificationRoutes } from './modules/notifications/notifications.routes.js';
 import { registerAnalyticsRoutes } from './modules/analytics/analytics.routes.js';
 import { registerReportRoutes } from './modules/reports/reports.routes.js';
+import { registerAuditRoutes } from './modules/audit/audit.routes.js';
+import { registerSupportRoutes } from './modules/support/support.routes.js';
+import { registerWelfareRoutes } from './modules/welfare/welfare.routes.js';
 import { registerWebSocketRoutes } from './websocket/index.js';
 
 /**
@@ -159,6 +162,9 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(registerNotificationRoutes);
   await app.register(registerAnalyticsRoutes);
   await app.register(registerReportRoutes);
+  await app.register(registerAuditRoutes);
+  await app.register(registerSupportRoutes);
+  await app.register(registerWelfareRoutes);
   registerWebSocketRoutes(app);
 
   // ── Global error handler ──────────────────────────────────────────────────
