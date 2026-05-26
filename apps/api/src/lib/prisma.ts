@@ -3,7 +3,6 @@ import { env } from '../config/env.js';
 
 // Extend globalThis to hold the Prisma singleton in development
 declare global {
-  // eslint-disable-next-line no-var
   var __prisma: PrismaClient | undefined;
 }
 

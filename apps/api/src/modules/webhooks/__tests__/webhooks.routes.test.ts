@@ -41,7 +41,6 @@ vi.mock('../../../jobs/queue.js', () => ({
   auditLogQueue: { add: vi.fn().mockResolvedValue({}) },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 vi.mock('bullmq', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Queue: vi.fn().mockImplementation(function (this: any) {

@@ -257,7 +257,6 @@ describe('POST /attendance/checkin/gps', () => {
   it('returns 400 when request body is missing required sessionId', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(STUDENT_DB as never);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { sessionId: _sessionId, ...bodyWithoutSessionId } = validGpsBody;
     const app = await createApp();
     const response = await app.inject({

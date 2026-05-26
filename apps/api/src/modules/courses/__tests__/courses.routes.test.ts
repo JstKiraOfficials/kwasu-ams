@@ -329,7 +329,7 @@ describe('POST /courses/:id/sections/:sectionId/enroll', () => {
       { id: STUDENT_ID_1 },
       { id: STUDENT_ID_2 },
     ] as never);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     vi.mocked(prisma.$transaction).mockImplementationOnce((async (fn: unknown) => {
       const txMock = {
         courseEnrollment: {
