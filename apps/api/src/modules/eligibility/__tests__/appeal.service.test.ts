@@ -51,8 +51,6 @@ const OTHER_USER_ID = 'a0000000-0000-4000-8000-000000000099';
 const ACTOR_ID = 'a0000000-0000-4000-8000-000000000002';
 const ELIGIBILITY_ID = 'a0000000-0000-4000-8000-000000000003';
 
-/** Appeal window end date 10 days in the future. */
-const _FUTURE_WINDOW_END = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
 /** Semester end date such that window has already closed. */
 const PAST_SEMESTER_END = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
 

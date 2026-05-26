@@ -83,7 +83,7 @@ export async function registerSemesterEndScheduler(): Promise<void> {
     'daily-semester-check',
     { semesterId: 'CHECK_ONLY' }, // sentinel value — worker handles this specially
     {
-      repeat: { cron: '0 1 * * *', tz: NST_TZ },
+      repeat: { pattern: '0 1 * * *', tz: NST_TZ },
       jobId: 'daily-semester-end-check',
     },
   );

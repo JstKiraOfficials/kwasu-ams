@@ -51,18 +51,17 @@ export async function generateCustomReport(
     filters.semesterId ??
     (await prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } }))?.id;
 
-  // Build where clause — only include optional filters when values are present
-  const sessionWhere = {
-    status: { in: ['CLOSED', 'LOCKED'] as const },
-    ...(filters.courseSectionId ? { courseSectionId: filters.courseSectionId } : {}),
-    ...(semesterId ? { courseSection: { semesterId } } : {}),
-  };
-
   const sessions = await prisma.courseSession.findMany({
-    where: sessionWhere,
-    select: {
-      id: true,
-      scheduledStart: true,
+    where: {
+      status: { in: ['CLOSED', 'LOCKED'] as const },
+      ...(filters.courseSectionId ? { courseSectionId: filters.courseSectionId } : {}),
+      ...(semesterId ? { courseSection: { semesterId } } : {}),
+    } as {
+      status: { in: ('CLOSED' | 'LOCKED')[] };
+      courseSectionId?: string;
+      courseSection?: { semesterId: string };
+    },
+    include: {
       courseSection: {
         select: {
           course: { select: { code: true, title: true } },
@@ -78,7 +77,7 @@ export async function generateCustomReport(
   // Build report rows
   const rows: Array<[string, string, string, string, string]> = sessions.map((s) => {
     const enrolled = s.courseSection.enrollments.length;
-    const present = s.attendanceRecords.filter((r) =>
+    const present = s.attendanceRecords.filter((r: { status: string }) =>
       ['PRESENT', 'LATE', 'MANUAL_OVERRIDE'].includes(r.status),
     ).length;
     const rate = computeAttendancePercentage(present, enrolled);

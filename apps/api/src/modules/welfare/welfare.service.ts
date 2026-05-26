@@ -163,7 +163,7 @@ export async function triggerWelfareReferral(
         type: 'WELFARE_REFERRAL',
         studentId,
         coursesBelow70: result.coursesBelow70,
-      } as unknown,
+      } as never,
     },
   });
 }

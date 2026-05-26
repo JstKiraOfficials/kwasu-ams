@@ -60,28 +60,28 @@ export async function registerWeeklySchedulers(): Promise<void> {
   await welfareCheckQueue.add(
     'weekly-welfare-check',
     { semesterId },
-    { repeat: { cron: '0 6 * * 1', tz: NST_TZ }, jobId: `welfare-check-${semesterId}` },
+    { repeat: { pattern: '0 6 * * 1', tz: NST_TZ }, jobId: `welfare-check-${semesterId}` },
   );
 
   // Monday 06:00 NST — weekly summary
   await weeklySummaryQueue.add(
     'weekly-summary',
     { semesterId },
-    { repeat: { cron: '0 6 * * 1', tz: NST_TZ }, jobId: `weekly-summary-${semesterId}` },
+    { repeat: { pattern: '0 6 * * 1', tz: NST_TZ }, jobId: `weekly-summary-${semesterId}` },
   );
 
   // Monday 07:00 NST — early intervention
   await earlyInterventionQueue.add(
     'early-intervention',
     { semesterId },
-    { repeat: { cron: '0 7 * * 1', tz: NST_TZ }, jobId: `early-intervention-${semesterId}` },
+    { repeat: { pattern: '0 7 * * 1', tz: NST_TZ }, jobId: `early-intervention-${semesterId}` },
   );
 
   // Monday 08:00 NST — lecturer accountability
   await accountabilityQueue.add(
     'lecturer-accountability',
     { semesterId },
-    { repeat: { cron: '0 8 * * 1', tz: NST_TZ }, jobId: `accountability-${semesterId}` },
+    { repeat: { pattern: '0 8 * * 1', tz: NST_TZ }, jobId: `accountability-${semesterId}` },
   );
 
   console.info('[weekly-scheduler] Registered 4 weekly scheduled jobs');
