@@ -45,6 +45,7 @@ import {
   detectSpoofing,
   spoofingFlagToAnomalyType,
 } from './checkin-helpers.js';
+import { dispatchWebhookEvent } from '../webhooks/webhook-dispatcher.service.js';
 
 // =============================================================================
 // Redis key helpers
@@ -355,6 +356,15 @@ export async function checkInQr(
         spoofingFlagged: spoofingResult.isSuspicious,
       },
     },
+  });
+
+  // Fire-and-forget webhook dispatch
+  void dispatchWebhookEvent('attendance.checkin.recorded', {
+    recordId: record.id,
+    sessionId: payload.sessionId,
+    studentId: student.id,
+    checkInMethod: CheckInMethod.QR_CODE,
+    status,
   });
 
   return record as unknown as IAttendanceRecord;

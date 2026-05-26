@@ -27,6 +27,7 @@ import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import { AppError } from '../../middleware/error-handler.js';
 import { anomalyDetectionQueue } from '../../jobs/queue.js';
+import { dispatchWebhookEvent } from '../webhooks/webhook-dispatcher.service.js';
 
 // =============================================================================
 // Internal helpers
@@ -143,6 +144,9 @@ export async function openSession(
 
   void writeAuditLog(actorId, 'LECTURER', 'SESSION_OPENED', 'CourseSession', sessionId);
 
+  // Fire-and-forget webhook dispatch
+  void dispatchWebhookEvent('attendance.session.opened', { sessionId, actorId });
+
   return updated as ICourseSessionPublic;
 }
 
@@ -246,6 +250,13 @@ export async function closeSession(
   void anomalyDetectionQueue.add('detect', { sessionId }, { delay: 5000 });
 
   void writeAuditLog(actorId, 'LECTURER', 'SESSION_CLOSED', 'CourseSession', sessionId, {
+    absentCount: absentStudents.length,
+  });
+
+  // Fire-and-forget webhook dispatch
+  void dispatchWebhookEvent('attendance.session.closed', {
+    sessionId,
+    actorId,
     absentCount: absentStudents.length,
   });
 

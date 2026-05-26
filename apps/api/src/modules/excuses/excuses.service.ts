@@ -49,6 +49,7 @@ import {
   type HodReviewExcuseInput,
   type ListExcusesQuery,
 } from './excuses.schema.js';
+import { dispatchWebhookEvent } from '../webhooks/webhook-dispatcher.service.js';
 
 // =============================================================================
 // Constants
@@ -599,6 +600,10 @@ export async function reviewExcuse(
     decision: data.decision,
   });
 
+  // Fire-and-forget webhook dispatch
+  const excuseEvent = data.decision === 'APPROVED' ? 'excuse.approved' : 'excuse.rejected';
+  void dispatchWebhookEvent(excuseEvent, { excuseId: id, decision: data.decision, actorId });
+
   return updated as unknown as IExcuseLetter;
 }
 
@@ -723,6 +728,10 @@ export async function hodReviewExcuse(
   void writeAuditLog(actorId, 'HOD', auditAction, 'ExcuseLetter', id, {
     decision: data.decision,
   });
+
+  // Fire-and-forget webhook dispatch
+  const hodExcuseEvent = data.decision === 'HOD_APPROVED' ? 'excuse.approved' : 'excuse.rejected';
+  void dispatchWebhookEvent(hodExcuseEvent, { excuseId: id, decision: data.decision, actorId });
 
   return updated as unknown as IExcuseLetter;
 }

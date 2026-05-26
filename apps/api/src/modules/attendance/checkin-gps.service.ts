@@ -38,6 +38,7 @@ import {
   detectSpoofing,
   spoofingFlagToAnomalyType,
 } from './checkin-helpers.js';
+import { dispatchWebhookEvent } from '../webhooks/webhook-dispatcher.service.js';
 
 // =============================================================================
 // checkInGps — public service function
@@ -239,6 +240,15 @@ export async function checkInGps(
         spoofingFlagged: spoofingResult.isSuspicious,
       },
     },
+  });
+
+  // Fire-and-forget webhook dispatch
+  void dispatchWebhookEvent('attendance.checkin.recorded', {
+    recordId: record.id,
+    sessionId: data.sessionId,
+    studentId: student.id,
+    checkInMethod: CheckInMethod.GPS_DIRECT,
+    status,
   });
 
   return record as unknown as IAttendanceRecord;

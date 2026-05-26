@@ -43,6 +43,7 @@ import {
   type GetCourseEligibilityQuery,
   type OverrideEligibilityInput,
 } from './eligibility.schema.js';
+import { dispatchWebhookEvent } from '../webhooks/webhook-dispatcher.service.js';
 
 // =============================================================================
 // Internal types
@@ -272,6 +273,23 @@ export async function computeEligibilityForSemester(
           computedAt: now,
         },
       });
+
+      // Fire-and-forget webhook dispatch for terminal eligibility statuses
+      if (result.status === EligibilityStatus.BARRED) {
+        void dispatchWebhookEvent('student.eligibility.barred', {
+          studentId: enrollment.studentId,
+          enrollmentId: enrollment.id,
+          semesterId,
+          effectivePercentage: result.effectivePercentage,
+        });
+      } else if (result.status === EligibilityStatus.ELIGIBLE) {
+        void dispatchWebhookEvent('student.eligibility.confirmed', {
+          studentId: enrollment.studentId,
+          enrollmentId: enrollment.id,
+          semesterId,
+          effectivePercentage: result.effectivePercentage,
+        });
+      }
 
       computed++;
     } catch {

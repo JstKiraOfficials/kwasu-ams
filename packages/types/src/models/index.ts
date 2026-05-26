@@ -22,3 +22,4 @@ export * from './timetable-entry.js';
 export * from './university.js';
 export * from './user.js';
 export * from './venue.js';
+export * from './webhook.js';
