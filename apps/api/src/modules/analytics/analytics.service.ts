@@ -22,7 +22,7 @@
 
 import { type Prisma } from '@prisma/client';
 import { Role } from '@kwasu-ams/types';
-import { computeAttendancePercentage } from '@kwasu-ams/utils';
+import { computeAttendancePercentage, classesNeededForThreshold } from '@kwasu-ams/utils';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 
@@ -222,7 +222,7 @@ async function computeDashboardData(
     case Role.SUPER_ADMIN:
       return computeVcDashboard(semesterId);
     case Role.DEAN:
-      return computeDeanDashboard(scopeId, semesterId, threshold);
+      return computeDeanDashboard(scopeId, semesterId);
     case Role.HOD:
       return computeHodDashboard(scopeId, semesterId, threshold);
     case Role.LECTURER:
@@ -337,13 +337,11 @@ async function computeVcDashboard(semesterId: string): Promise<DashboardData> {
  *
  * @param facultyId  - UUID of the dean's faculty scope.
  * @param semesterId - Active semester UUID.
- * @param threshold  - Eligibility threshold percentage.
  * @returns DEAN dashboard data with department breakdown.
  */
 async function computeDeanDashboard(
   facultyId: string | null,
   semesterId: string,
-  threshold: number,
 ): Promise<DashboardData> {
   const where: Prisma.DepartmentWhereInput = facultyId ? { facultyId } : {};
 
@@ -669,4 +667,276 @@ async function computeExamOfficerDashboard(semesterId: string): Promise<Dashboar
   ]);
 
   return { role: 'EXAM_OFFICER', totalStudents, eligibleCount, barredCount, conditionalCount };
+}
+
+// =============================================================================
+// Course and Student Analytics (Phase 28 additions)
+// =============================================================================
+
+/** Trend direction for course attendance over time. */
+export type TrendDirection = 'IMPROVING' | 'DECLINING' | 'STABLE';
+
+/**
+ * Analytics data for a single course section.
+ */
+export interface CourseAnalytics {
+  /** Attendance rate per session, ordered chronologically. */
+  sessionRates: Array<{ sessionId: string; date: Date; rate: number }>;
+  /** 4-week trend direction. */
+  trend: TrendDirection;
+  /** Session with the highest attendance rate. */
+  highestSession: { sessionId: string; rate: number };
+  /** Session with the lowest attendance rate. */
+  lowestSession: { sessionId: string; rate: number };
+  /** Distribution histogram in 25% buckets. */
+  distribution: Array<{ range: string; count: number }>;
+  /** Average attendance rate across all sessions. */
+  averageRate: number;
+}
+
+/**
+ * Analytics data for a single student across all enrolled courses.
+ */
+export interface StudentAnalytics {
+  /** Per-course analytics entries. */
+  courses: Array<{
+    /** Course code. */
+    courseCode: string;
+    /** Student's current attendance percentage. */
+    percentage: number;
+    /** Classes needed to reach 75% threshold. */
+    threshold75: number;
+    /** Classes needed to reach 80% threshold. */
+    threshold80: number;
+    /** Classes needed to reach 90% threshold. */
+    threshold90: number;
+    /** Dynamic eligibility message. */
+    dynamicMessage: string;
+    /** Class average attendance percentage. */
+    classAverage: number;
+    /** Benchmark message comparing student to class average. */
+    benchmarkMessage: string;
+    /** Whether the student has 3+ absences on the same weekday. */
+    absenceClustering: boolean;
+  }>;
+}
+
+/** Analytics cache TTL in seconds (5 minutes). */
+const ANALYTICS_CACHE_TTL = 300;
+
+/**
+ * Returns course-level analytics for a course section in a semester.
+ *
+ * Computes session attendance rates, 4-week trend, distribution histogram,
+ * and caches the result in Redis for 5 minutes.
+ *
+ * @param courseSectionId - UUID of the `CourseSection`.
+ * @param semesterId      - UUID of the `Semester`.
+ * @returns {@link CourseAnalytics} for the course section.
+ */
+export async function getCourseAnalytics(
+  courseSectionId: string,
+  semesterId: string,
+): Promise<CourseAnalytics> {
+  const cacheKey = `analytics:course:${courseSectionId}:${semesterId}`;
+  const cached = await redis.get(cacheKey);
+  if (cached !== null) return JSON.parse(cached) as CourseAnalytics;
+
+  const sessions = await prisma.courseSession.findMany({
+    where: { courseSectionId, status: { in: ['CLOSED', 'LOCKED'] } },
+    select: {
+      id: true,
+      scheduledStart: true,
+      attendanceRecords: { select: { status: true } },
+      courseSection: { select: { enrollments: { select: { id: true } } } },
+    },
+    orderBy: { scheduledStart: 'asc' },
+  });
+
+  if (sessions.length === 0) {
+    const empty: CourseAnalytics = {
+      sessionRates: [],
+      trend: 'STABLE',
+      highestSession: { sessionId: '', rate: 0 },
+      lowestSession: { sessionId: '', rate: 0 },
+      distribution: [
+        { range: '0-25%', count: 0 },
+        { range: '25-50%', count: 0 },
+        { range: '50-75%', count: 0 },
+        { range: '75-100%', count: 0 },
+      ],
+      averageRate: 0,
+    };
+    return empty;
+  }
+
+  const sessionRates = sessions.map((s) => {
+    const enrolled = s.courseSection.enrollments.length;
+    const present = s.attendanceRecords.filter((r) =>
+      ['PRESENT', 'LATE', 'MANUAL_OVERRIDE'].includes(r.status),
+    ).length;
+    return {
+      sessionId: s.id,
+      date: s.scheduledStart,
+      rate: computeAttendancePercentage(present, enrolled),
+    };
+  });
+
+  // Trend: compare last 4 vs previous 4
+  const last4 = sessionRates.slice(-4);
+  const prev4 = sessionRates.slice(-8, -4);
+  let trend: TrendDirection = 'STABLE';
+  if (last4.length >= 2 && prev4.length >= 2) {
+    const last4Avg = last4.reduce((s, r) => s + r.rate, 0) / last4.length;
+    const prev4Avg = prev4.reduce((s, r) => s + r.rate, 0) / prev4.length;
+    const diff = last4Avg - prev4Avg;
+    if (diff > 5) trend = 'IMPROVING';
+    else if (diff < -5) trend = 'DECLINING';
+  }
+
+  const rates = sessionRates.map((r) => r.rate);
+  const maxRate = Math.max(...rates);
+  const minRate = Math.min(...rates);
+  const highestSession = sessionRates.find((r) => r.rate === maxRate)!;
+  const lowestSession = sessionRates.find((r) => r.rate === minRate)!;
+  const averageRate = Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 100) / 100;
+
+  // Distribution histogram
+  const distribution = [
+    { range: '0-25%', count: rates.filter((r) => r < 25).length },
+    { range: '25-50%', count: rates.filter((r) => r >= 25 && r < 50).length },
+    { range: '50-75%', count: rates.filter((r) => r >= 50 && r < 75).length },
+    { range: '75-100%', count: rates.filter((r) => r >= 75).length },
+  ];
+
+  const result: CourseAnalytics = {
+    sessionRates,
+    trend,
+    highestSession: { sessionId: highestSession.sessionId, rate: highestSession.rate },
+    lowestSession: { sessionId: lowestSession.sessionId, rate: lowestSession.rate },
+    distribution,
+    averageRate,
+  };
+
+  void redis.set(cacheKey, JSON.stringify(result), 'EX', ANALYTICS_CACHE_TTL);
+  return result;
+}
+
+/**
+ * Returns student-level analytics across all enrolled courses in a semester.
+ *
+ * Computes attendance percentage, classes needed for thresholds, dynamic
+ * eligibility messages, class benchmarks, and absence clustering detection.
+ *
+ * @param studentId  - UUID of the `Student` record.
+ * @param semesterId - UUID of the `Semester`.
+ * @returns {@link StudentAnalytics} for the student.
+ */
+export async function getStudentAnalytics(
+  studentId: string,
+  semesterId: string,
+): Promise<StudentAnalytics> {
+  const enrollments = await prisma.courseEnrollment.findMany({
+    where: { studentId, courseSection: { semesterId } },
+    select: {
+      id: true,
+      courseSection: {
+        select: {
+          course: { select: { code: true } },
+          sessions: {
+            where: { status: { in: ['CLOSED', 'LOCKED'] } },
+            select: { id: true, scheduledStart: true },
+          },
+          enrollments: {
+            select: {
+              attendanceRecords: {
+                select: { status: true },
+              },
+            },
+          },
+        },
+      },
+      attendanceRecords: {
+        select: { status: true, session: { select: { scheduledStart: true } } },
+      },
+    },
+  });
+
+  const courses = await Promise.all(
+    enrollments.map(async (enrollment) => {
+      const courseCode = enrollment.courseSection.course.code;
+      const totalSessions = enrollment.courseSection.sessions.length;
+      const presentCount = enrollment.attendanceRecords.filter((r) =>
+        ['PRESENT', 'LATE', 'MANUAL_OVERRIDE'].includes(r.status),
+      ).length;
+      const percentage = computeAttendancePercentage(presentCount, totalSessions);
+
+      // Classes needed for thresholds (assume 10 remaining sessions)
+      const remainingSessions = 10;
+      const threshold75 = classesNeededForThreshold(
+        presentCount,
+        totalSessions,
+        remainingSessions,
+        75,
+      );
+      const threshold80 = classesNeededForThreshold(
+        presentCount,
+        totalSessions,
+        remainingSessions,
+        80,
+      );
+      const threshold90 = classesNeededForThreshold(
+        presentCount,
+        totalSessions,
+        remainingSessions,
+        90,
+      );
+
+      const dynamicMessage =
+        percentage >= 75
+          ? `You are eligible for ${courseCode} exams.`
+          : `You need ${threshold75} more classes for exam eligibility in ${courseCode}.`;
+
+      // Class average
+      const allEnrollmentRecords = enrollment.courseSection.enrollments.flatMap(
+        (e) => e.attendanceRecords,
+      );
+      const classPresent = allEnrollmentRecords.filter((r) =>
+        ['PRESENT', 'LATE', 'MANUAL_OVERRIDE'].includes(r.status),
+      ).length;
+      const classTotal = enrollment.courseSection.enrollments.length * totalSessions;
+      const classAverage = computeAttendancePercentage(classPresent, classTotal);
+
+      const diff = classAverage > 0 ? ((percentage - classAverage) / classAverage) * 100 : 0;
+      const absDiff = Math.abs(diff).toFixed(1);
+      const benchmarkMessage =
+        diff >= 0
+          ? `Your attendance is ${absDiff}% above the class average.`
+          : `Your attendance is ${absDiff}% below the class average.`;
+
+      // Absence clustering: 3+ absences on same weekday
+      const absencesByDay: Record<number, number> = {};
+      for (const record of enrollment.attendanceRecords) {
+        if (record.status === 'ABSENT' && record.session?.scheduledStart) {
+          const day = new Date(record.session.scheduledStart).getDay();
+          absencesByDay[day] = (absencesByDay[day] ?? 0) + 1;
+        }
+      }
+      const absenceClustering = Object.values(absencesByDay).some((count) => count >= 3);
+
+      return {
+        courseCode,
+        percentage,
+        threshold75,
+        threshold80,
+        threshold90,
+        dynamicMessage,
+        classAverage,
+        benchmarkMessage,
+        absenceClustering,
+      };
+    }),
+  );
+
+  return { courses };
 }
