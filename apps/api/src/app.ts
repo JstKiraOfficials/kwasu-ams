@@ -52,6 +52,8 @@ import { registerAuditRoutes } from './modules/audit/audit.routes.js';
 import { registerSupportRoutes } from './modules/support/support.routes.js';
 import { registerWelfareRoutes } from './modules/welfare/welfare.routes.js';
 import { registerWebhookRoutes } from './modules/webhooks/webhooks.routes.js';
+import { registerUserRoutes } from './modules/users/users.routes.js';
+import { registerIntegrationRoutes } from './modules/integrations/integrations.routes.js';
 import { registerWebSocketRoutes } from './websocket/index.js';
 
 /**
@@ -167,6 +169,8 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(registerSupportRoutes);
   await app.register(registerWelfareRoutes);
   await app.register(registerWebhookRoutes);
+  await app.register(registerUserRoutes);
+  await app.register(registerIntegrationRoutes);
   registerWebSocketRoutes(app);
 
   // ── Global error handler ──────────────────────────────────────────────────
