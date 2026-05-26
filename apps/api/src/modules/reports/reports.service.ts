@@ -42,7 +42,7 @@ const REPORT_URL_EXPIRY = 3600;
  */
 export async function generateCustomReport(
   filters: ReportFilters,
-  metrics: ReportMetrics,
+  _metrics: ReportMetrics,
   format: 'PDF' | 'EXCEL' | 'CSV',
   actorId: string,
 ): Promise<{ downloadUrl: string; checksum: string }> {
@@ -51,15 +51,15 @@ export async function generateCustomReport(
     filters.semesterId ??
     (await prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } }))?.id;
 
-  // Build where clause
-  const where = {
+  // Build where clause — only include optional filters when values are present
+  const sessionWhere = {
+    status: { in: ['CLOSED', 'LOCKED'] as const },
     ...(filters.courseSectionId ? { courseSectionId: filters.courseSectionId } : {}),
     ...(semesterId ? { courseSection: { semesterId } } : {}),
-    status: { in: ['CLOSED', 'LOCKED'] as const },
   };
 
   const sessions = await prisma.courseSession.findMany({
-    where,
+    where: sessionWhere,
     select: {
       id: true,
       scheduledStart: true,

@@ -68,7 +68,7 @@ export async function generateAttendanceCertificate(
 
   // Get eligibility data
   const eligibility = await prisma.examEligibility.findFirst({
-    where: { studentId, enrollmentId: { not: undefined }, semesterId },
+    where: { studentId, semesterId },
     select: { effectivePercentage: true, status: true },
   });
 

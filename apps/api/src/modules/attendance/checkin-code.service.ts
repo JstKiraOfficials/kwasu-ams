@@ -31,7 +31,6 @@ import {
 import {
   generateAlphanumericCode as utilsGenerateCode,
   validateAlphanumericCode,
-  isOk,
   isErr,
   addMinutes,
 } from '@kwasu-ams/utils';

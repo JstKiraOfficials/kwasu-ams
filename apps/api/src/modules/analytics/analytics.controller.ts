@@ -96,7 +96,7 @@ export async function getStudentAnalyticsHandler(
  * @returns A promise that resolves once the response is sent.
  */
 export async function getLiveHeatmapHandler(
-  request: FastifyRequest,
+  _request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
   const result = await getLiveHeatmap();

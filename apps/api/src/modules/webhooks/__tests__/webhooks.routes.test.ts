@@ -97,7 +97,7 @@ describe('createWebhook', () => {
     expect(result.secret).toBe(PLAINTEXT_SECRET);
     expect(result.webhook.id).toBe(WEBHOOK_ID);
     // secretEncrypted must not appear in the webhook shape
-    expect((result.webhook as Record<string, unknown>).secretEncrypted).toBeUndefined();
+    expect((result.webhook as unknown as Record<string, unknown>).secretEncrypted).toBeUndefined();
     expect(encryptTotpSecret).toHaveBeenCalledWith(PLAINTEXT_SECRET);
     expect(prisma.webhook.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -121,7 +121,7 @@ describe('listWebhooks', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]!.id).toBe(WEBHOOK_ID);
-    expect((result[0] as Record<string, unknown>).secretEncrypted).toBeUndefined();
+    expect((result[0] as unknown as Record<string, unknown>).secretEncrypted).toBeUndefined();
     expect(prisma.webhook.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { isActive: true } }),
     );

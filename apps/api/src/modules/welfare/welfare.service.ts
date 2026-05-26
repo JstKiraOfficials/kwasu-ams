@@ -11,7 +11,6 @@
  * records. They only send notifications and write an `AuditLog` entry.
  */
 
-import { type Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { notificationQueue } from '../../jobs/queue.js';
 import { AppError } from '../../middleware/error-handler.js';
@@ -164,7 +163,7 @@ export async function triggerWelfareReferral(
         type: 'WELFARE_REFERRAL',
         studentId,
         coursesBelow70: result.coursesBelow70,
-      } as Prisma.InputJsonValue,
+      } as unknown,
     },
   });
 }
@@ -184,8 +183,8 @@ export async function triggerWelfareReferral(
  * @returns Array of {@link WelfareReferral} records.
  */
 export async function listWelfareReferrals(
-  actorRole: string,
-  actorScopeId: string | null,
+  _actorRole: string,
+  _actorScopeId: string | null,
 ): Promise<WelfareReferral[]> {
   // Query audit logs with welfare referral metadata
   const logs = await prisma.auditLog.findMany({

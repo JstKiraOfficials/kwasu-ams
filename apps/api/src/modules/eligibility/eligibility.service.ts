@@ -505,7 +505,7 @@ export async function overrideEligibilityStatus(
     where: { id: eligibilityId },
     data: {
       status: data.status,
-      frozenAt: eligibility.semester.isFrozen ? now : undefined,
+      ...(eligibility.semester.isFrozen ? { frozenAt: now } : {}),
     },
   });
 

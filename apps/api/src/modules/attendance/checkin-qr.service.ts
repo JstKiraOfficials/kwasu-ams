@@ -30,7 +30,6 @@ import {
 import {
   generateQrToken as utilsGenerateQrToken,
   verifyQrToken as utilsVerifyQrToken,
-  isOk,
   isErr,
   addMinutes,
 } from '@kwasu-ams/utils';
