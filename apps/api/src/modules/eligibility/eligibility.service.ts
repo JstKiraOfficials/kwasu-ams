@@ -525,3 +525,85 @@ export async function overrideEligibilityStatus(
 
   return updated as unknown as IExamEligibility;
 }
+
+// =============================================================================
+// getAtRiskEligibility
+// =============================================================================
+
+/**
+ * Returns a paginated list of `ExamEligibility` records where
+ * `atRiskPredicted = true` for the active (or a specified) semester.
+ *
+ * Scope rules mirror `getEligibilityForCourse`:
+ * - `HOD` — scoped to their department's courses.
+ * - `DEAN` — scoped to their faculty's courses.
+ * - `SUPER_ADMIN`, `ACADEMIC_AFFAIRS` — all at-risk records.
+ *
+ * @param semesterId  - Optional UUID to override the active semester lookup.
+ * @param page        - 1-based page number.
+ * @param pageSize    - Records per page (max 100).
+ * @param actorRole   - Role of the requesting user (for scope enforcement).
+ * @param actorScopeId - Department/Faculty UUID of the actor, or `null`.
+ * @returns Paginated list of at-risk {@link IExamEligibility} records.
+ */
+export async function getAtRiskEligibility(
+  semesterId: string | undefined,
+  page: number,
+  pageSize: number,
+  actorRole: Role,
+  actorScopeId: string | null,
+): Promise<PaginatedResponse<IExamEligibility>> {
+  // Resolve semester
+  let resolvedSemesterId = semesterId;
+  if (!resolvedSemesterId) {
+    const active = await prisma.semester.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    if (!active) {
+      return { data: [], meta: { page, pageSize, total: 0, totalPages: 0 } };
+    }
+    resolvedSemesterId = active.id;
+  }
+
+  const skip = (page - 1) * pageSize;
+
+  const where: Prisma.ExamEligibilityWhereInput = {
+    semesterId: resolvedSemesterId,
+    atRiskPredicted: true,
+  };
+
+  // Scope enforcement
+  if (actorRole === Role.HOD && actorScopeId !== null) {
+    where.enrollment = {
+      courseSection: { course: { departmentId: actorScopeId } },
+    };
+  } else if (actorRole === Role.DEAN && actorScopeId !== null) {
+    where.enrollment = {
+      courseSection: { course: { department: { facultyId: actorScopeId } } },
+    };
+  }
+
+  const [records, total] = await Promise.all([
+    prisma.examEligibility.findMany({
+      where,
+      skip,
+      take: pageSize,
+      include: {
+        student: { include: { user: { select: { fullName: true } } } },
+        enrollment: {
+          include: {
+            courseSection: { include: { course: { select: { code: true, title: true } } } },
+          },
+        },
+      },
+      orderBy: { student: { matricNumber: 'asc' } },
+    }),
+    prisma.examEligibility.count({ where }),
+  ]);
+
+  return {
+    data: records as unknown as IExamEligibility[],
+    meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+  };
+}

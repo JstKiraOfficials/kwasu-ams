@@ -313,14 +313,28 @@ export const bulkAccountQueue = new Queue<BulkAccountJobData>('bulk-account-crea
 });
 
 /**
- * BullMQ queue for smart conflict detection jobs (Phase 32).
+ * Payload for a `smart-conflict-detection` job.
  *
- * Placeholder — worker implemented in Phase 32.
+ * Enqueued weekly on Mondays at 09:00 Nigeria time.
  */
-export const smartConflictQueue = new Queue('smart-conflict-detection', {
-  connection: redis,
-  defaultJobOptions: DEFAULT_JOB_OPTIONS,
-});
+export interface SmartConflictDetectionJobData {
+  /** UUID of the active `Semester` to scan for timetable conflicts. */
+  semesterId: string;
+}
+
+/**
+ * BullMQ queue for smart timetable conflict detection jobs.
+ *
+ * Enqueued weekly on Mondays at 09:00 Nigeria time.
+ * Outputs `REPEATED_DAY_PATTERN` anomaly flags for ACADEMIC_AFFAIRS review.
+ */
+export const smartConflictQueue = new Queue<SmartConflictDetectionJobData>(
+  'smart-conflict-detection',
+  {
+    connection: redis,
+    defaultJobOptions: DEFAULT_JOB_OPTIONS,
+  },
+);
 
 /**
  * BullMQ queue for attendance heatmap refresh jobs (Phase 34).

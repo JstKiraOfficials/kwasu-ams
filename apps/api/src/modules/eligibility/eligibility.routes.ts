@@ -7,6 +7,7 @@
  * | Method | Path                                  | Roles                                          |
  * |--------|---------------------------------------|------------------------------------------------|
  * | POST   | /eligibility/compute                  | SUPER_ADMIN, ACADEMIC_AFFAIRS                  |
+ * | GET    | /eligibility/at-risk                  | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD       |
  * | GET    | /eligibility/student/:studentId       | SUPER_ADMIN…STUDENT                            |
  * | GET    | /eligibility/course/:courseSectionId  | SUPER_ADMIN…EXAM_OFFICER                       |
  * | POST   | /eligibility/freeze/:semesterId       | SUPER_ADMIN                                    |
@@ -14,8 +15,9 @@
  * | POST   | /eligibility/:id/appeal               | STUDENT                                        |
  * | PATCH  | /eligibility/:id/appeal/decide        | LECTURER, HOD, DEAN, SUPER_ADMIN               |
  *
- * Static sub-paths (`/compute`, `/freeze/:semesterId`, `/student/:studentId`,
- * `/course/:courseSectionId`) are registered before the dynamic `/:id` routes.
+ * Static sub-paths (`/compute`, `/at-risk`, `/freeze/:semesterId`,
+ * `/student/:studentId`, `/course/:courseSectionId`) are registered before the
+ * dynamic `/:id` routes.
  */
 
 import { type FastifyInstance } from 'fastify';
@@ -34,6 +36,9 @@ const READ_ROLES = [
   Role.LECTURER,
   Role.STUDENT,
 ] as const;
+
+/** Roles permitted to view at-risk student reports. */
+const AT_RISK_ROLES = [Role.SUPER_ADMIN, Role.ACADEMIC_AFFAIRS, Role.DEAN, Role.HOD] as const;
 
 /** Roles permitted to decide appeals. */
 const APPEAL_DECIDE_ROLES = [Role.LECTURER, Role.HOD, Role.DEAN, Role.SUPER_ADMIN] as const;
@@ -65,6 +70,29 @@ export async function registerEligibilityRoutes(app: FastifyInstance): Promise<v
       },
     },
     controller.triggerComputationHandler,
+  );
+
+  // ── GET /eligibility/at-risk ─────────────────────────────────────────────
+  app.get(
+    '/eligibility/at-risk',
+    {
+      preHandler: [authenticate, requireRoles(...AT_RISK_ROLES)],
+      schema: {
+        tags: ['eligibility'],
+        summary: 'List at-risk students (atRiskPredicted=true) for the active semester',
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            semesterId: { type: 'string', format: 'uuid' },
+            page: { type: 'integer', minimum: 1, default: 1 },
+            pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+          },
+        },
+        response: { 200: { type: 'object', additionalProperties: true } },
+      },
+    },
+    controller.getAtRiskHandler,
   );
 
   // ── GET /eligibility/student/:studentId ──────────────────────────────────

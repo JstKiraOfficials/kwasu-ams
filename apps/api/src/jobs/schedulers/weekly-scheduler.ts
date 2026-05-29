@@ -12,6 +12,7 @@
  * - Monday 06:00 NST — `weekly-summary` job for the active semester.
  * - Monday 07:00 NST — `early-intervention` job for the active semester.
  * - Monday 08:00 NST — `lecturer-accountability` job for the active semester.
+ * - Monday 09:00 NST — `smart-conflict-detection` job for the active semester.
  *
  * The scheduler resolves the active semester at job execution time (not at
  * registration time) so it always uses the current active semester.
@@ -22,6 +23,7 @@ import {
   weeklySummaryQueue,
   earlyInterventionQueue,
   accountabilityQueue,
+  smartConflictQueue,
 } from '../queue.js';
 import { prisma } from '../../lib/prisma.js';
 
@@ -84,5 +86,15 @@ export async function registerWeeklySchedulers(): Promise<void> {
     { repeat: { pattern: '0 8 * * 1', tz: NST_TZ }, jobId: `accountability-${semesterId}` },
   );
 
-  console.info('[weekly-scheduler] Registered 4 weekly scheduled jobs');
+  // Monday 09:00 NST — smart timetable conflict detection
+  await smartConflictQueue.add(
+    'smart-conflict-detection',
+    { semesterId },
+    {
+      repeat: { pattern: '0 9 * * 1', tz: NST_TZ },
+      jobId: `smart-conflict-detection-${semesterId}`,
+    },
+  );
+
+  console.info('[weekly-scheduler] Registered 5 weekly scheduled jobs');
 }

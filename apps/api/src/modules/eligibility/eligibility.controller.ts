@@ -25,6 +25,7 @@ import {
   getEligibilityForCourse,
   freezeEligibility,
   overrideEligibilityStatus,
+  getAtRiskEligibility,
 } from './eligibility.service.js';
 import { submitAppeal, decideAppeal } from './appeal.service.js';
 
@@ -171,6 +172,33 @@ export async function decideAppealHandler(
     body.reason,
     request.user!.userId,
     request.user!.role as Role,
+  );
+  void reply.status(200).send(result);
+}
+
+/**
+ * Handles `GET /eligibility/at-risk`.
+ *
+ * Returns a paginated, scope-aware list of `ExamEligibility` records where
+ * `atRiskPredicted = true` for the active (or specified) semester.
+ *
+ * @param request - Fastify request. Query: `{ semesterId?, page?, pageSize? }`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ */
+export async function getAtRiskHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const query = request.query as { semesterId?: string; page?: number; pageSize?: number };
+  const page = Math.max(1, Number(query.page ?? 1));
+  const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 20)));
+  const result = await getAtRiskEligibility(
+    query.semesterId,
+    page,
+    pageSize,
+    request.user!.role as Role,
+    request.user!.scopeId ?? null,
   );
   void reply.status(200).send(result);
 }

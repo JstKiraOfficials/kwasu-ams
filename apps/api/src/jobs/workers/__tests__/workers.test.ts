@@ -33,15 +33,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../../lib/prisma.js', () => ({
   prisma: {
     auditLog: { create: vi.fn() },
-    examEligibility: { findMany: vi.fn(), update: vi.fn() },
+    examEligibility: { findMany: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
     user: { findFirst: vi.fn() },
     lecturer: { findMany: vi.fn(), update: vi.fn() },
     courseSection: { findMany: vi.fn() },
     courseSession: { findMany: vi.fn() },
+    courseEnrollment: { findMany: vi.fn() },
     manualOverride: { count: vi.fn() },
     semester: { findUnique: vi.fn() },
     student: { findMany: vi.fn() },
-    courseEnrollment: { findMany: vi.fn() },
+    timetableEntry: { count: vi.fn() },
+    department: { findUnique: vi.fn() },
   },
 }));
 
@@ -211,25 +213,78 @@ describe('processWelfareCheck', () => {
 // =============================================================================
 
 describe('processEarlyIntervention', () => {
-  it('sets atRiskPredicted=true when projected percentage is below threshold', async () => {
-    vi.mocked(prisma.semester.findUnique).mockResolvedValue({ eligibilityThreshold: 75 } as never);
-    vi.mocked(prisma.examEligibility.findMany).mockResolvedValue([
+  beforeEach(() => {
+    // Default: no timetable entries → remainingSessions will use count=0 fallback
+    vi.mocked(prisma.timetableEntry.count).mockResolvedValue(0);
+    vi.mocked(prisma.examEligibility.findFirst).mockResolvedValue({
+      id: 'elig-1',
+      effectivePercentage: 50,
+    } as never);
+    vi.mocked(prisma.department.findUnique).mockResolvedValue({
+      id: DEPT_ID,
+      name: 'Computer Science',
+    } as never);
+  });
+
+  it('sets atRiskPredicted=true when projected percentage is below threshold (10/20 present, 10 remaining → 50% projected)', async () => {
+    vi.mocked(prisma.semester.findUnique).mockResolvedValue({
+      eligibilityThreshold: 75,
+      examStartDate: new Date(Date.now() + 10 * 7 * 24 * 60 * 60 * 1000), // 10 weeks away
+    } as never);
+
+    vi.mocked(prisma.courseEnrollment.findMany).mockResolvedValue([
       {
-        id: 'elig-1',
-        effectivePercentage: 40,
-        enrollment: {
-          courseSection: {
-            // 20 sessions already held
-            sessions: Array.from({ length: 20 }, (_, i) => ({ id: `s${i}` })),
-            course: { code: 'BIO201' },
-          },
-          // Only 5 present out of 20 = 25% — even with 8 more sessions all present: 13/28 = 46% < 75%
-          attendanceRecords: Array.from({ length: 5 }, () => ({ status: 'PRESENT' })),
-          student: {
-            user: { id: USER_ID },
-            programme: { departmentId: DEPT_ID },
-          },
+        id: 'enroll-1',
+        courseSectionId: 'cs-1',
+        student: {
+          id: STUDENT_ID,
+          matricNumber: 'KWASU/22/0001',
+          programme: { departmentId: DEPT_ID },
+          user: { fullName: 'Alice' },
         },
+        courseSection: {
+          course: { code: 'BIO201', title: 'Biology' },
+          sessions: Array.from({ length: 20 }, (_, i) => ({ id: `s${i}` })),
+        },
+        // 10 present out of 20; even if all 10 remaining attended: 20/30 = 66.67% < 75%
+        attendanceRecords: Array.from({ length: 10 }, () => ({ status: 'PRESENT' })),
+      },
+    ] as never);
+    vi.mocked(prisma.examEligibility.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({
+      id: USER_ID,
+      fullName: 'HOD User',
+    } as never);
+
+    await processEarlyIntervention(makeJob({ semesterId: SEMESTER_ID }));
+
+    expect(prisma.examEligibility.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { atRiskPredicted: true } }),
+    );
+  });
+
+  it('sets atRiskPredicted=false when projected percentage meets threshold (14/20 present, 6 remaining → ~77%)', async () => {
+    vi.mocked(prisma.semester.findUnique).mockResolvedValue({
+      eligibilityThreshold: 75,
+      examStartDate: new Date(Date.now() + 6 * 7 * 24 * 60 * 60 * 1000), // 6 weeks away
+    } as never);
+
+    vi.mocked(prisma.courseEnrollment.findMany).mockResolvedValue([
+      {
+        id: 'enroll-2',
+        courseSectionId: 'cs-2',
+        student: {
+          id: STUDENT_ID,
+          matricNumber: 'KWASU/22/0002',
+          programme: { departmentId: DEPT_ID },
+          user: { fullName: 'Bob' },
+        },
+        courseSection: {
+          course: { code: 'CHE301', title: 'Chemistry' },
+          sessions: Array.from({ length: 20 }, (_, i) => ({ id: `s${i}` })),
+        },
+        // 14 present + 6 remaining all present = 20/26 ≈ 76.9% ≥ 75%
+        attendanceRecords: Array.from({ length: 14 }, () => ({ status: 'PRESENT' })),
       },
     ] as never);
     vi.mocked(prisma.examEligibility.update).mockResolvedValue({} as never);
@@ -237,8 +292,51 @@ describe('processEarlyIntervention', () => {
     await processEarlyIntervention(makeJob({ semesterId: SEMESTER_ID }));
 
     expect(prisma.examEligibility.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { atRiskPredicted: true } }),
+      expect.objectContaining({ data: { atRiskPredicted: false } }),
     );
+    // No at-risk students → no notification
+    expect(notificationQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('running the worker twice produces no duplicate updates (idempotent upsert)', async () => {
+    vi.mocked(prisma.semester.findUnique).mockResolvedValue({
+      eligibilityThreshold: 75,
+      examStartDate: new Date(Date.now() + 10 * 7 * 24 * 60 * 60 * 1000),
+    } as never);
+
+    vi.mocked(prisma.courseEnrollment.findMany).mockResolvedValue([
+      {
+        id: 'enroll-3',
+        courseSectionId: 'cs-3',
+        student: {
+          id: STUDENT_ID,
+          matricNumber: 'KWASU/22/0003',
+          programme: { departmentId: DEPT_ID },
+          user: { fullName: 'Carol' },
+        },
+        courseSection: {
+          course: { code: 'PHY101', title: 'Physics' },
+          sessions: Array.from({ length: 20 }, (_, i) => ({ id: `s${i}` })),
+        },
+        attendanceRecords: Array.from({ length: 5 }, () => ({ status: 'PRESENT' })),
+      },
+    ] as never);
+    vi.mocked(prisma.examEligibility.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({
+      id: USER_ID,
+      fullName: 'HOD User',
+    } as never);
+
+    // Run twice
+    await processEarlyIntervention(makeJob({ semesterId: SEMESTER_ID }));
+    await processEarlyIntervention(makeJob({ semesterId: SEMESTER_ID }));
+
+    // update should be called once per run (2 total), no more
+    expect(prisma.examEligibility.update).toHaveBeenCalledTimes(2);
+    // Both calls should set atRiskPredicted: true
+    for (const call of vi.mocked(prisma.examEligibility.update).mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ data: { atRiskPredicted: true } }));
+    }
   });
 });
 

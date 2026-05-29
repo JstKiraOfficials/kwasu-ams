@@ -2,134 +2,239 @@
  * @file early-intervention.worker.ts
  * @module jobs/workers
  *
- * BullMQ worker for early intervention analysis jobs.
+ * BullMQ worker for the early intervention analysis job.
  *
- * Runs weekly (Monday 07:00 Nigeria time). For each student with PENDING or
- * BARRED eligibility, projects their final attendance percentage using
- * `projectFinalPercentage()`. Sets `atRiskPredicted = true` on records where
- * the projected final is below the threshold. Compiles per-HOD reports and
- * enqueues email notifications.
+ * Runs weekly (Monday 07:00 Nigeria time). For every active enrollment in the
+ * semester the worker projects the final attendance percentage using
+ * `projectFinalPercentage()`. If the projection falls below the semester
+ * threshold it sets `ExamEligibility.atRiskPredicted = true`; otherwise it
+ * resets the flag to `false` so improvements are reflected on re-runs.
+ *
+ * HODs receive a weekly Early Intervention Report email listing all at-risk
+ * students in their department. No attendance or eligibility records are
+ * modified — this is advisory only.
  */
 
 import { Worker, type Job } from 'bullmq';
 import { redis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
-import { projectFinalPercentage } from '@kwasu-ams/utils';
+import { projectFinalPercentage, classesNeededForThreshold } from '@kwasu-ams/utils';
 import { notificationQueue, type EarlyInterventionJobData } from '../queue.js';
 
+// =============================================================================
+// Internal helpers
+// =============================================================================
+
 /**
- * Processes a single `early-intervention` job.
+ * Estimates remaining sessions for a course section until the exam start date.
+ *
+ * Formula: `weeksRemaining × timetableEntriesPerWeek`.
+ * Falls back to 1 session per week when no timetable entries exist.
+ *
+ * @param examStartDate   - Exam start date for the semester.
+ * @param courseSectionId - UUID of the course section.
+ * @returns Estimated remaining session count (≥ 0).
+ */
+async function estimateRemainingSessions(
+  examStartDate: Date,
+  courseSectionId: string,
+): Promise<number> {
+  const now = new Date();
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const weeksRemaining = Math.max(
+    0,
+    Math.ceil((examStartDate.getTime() - now.getTime()) / msPerWeek),
+  );
+  if (weeksRemaining === 0) return 0;
+
+  const entryCount = await prisma.timetableEntry.count({ where: { courseSectionId } });
+  const sessionsPerWeek = entryCount > 0 ? entryCount : 1;
+  return weeksRemaining * sessionsPerWeek;
+}
+
+// =============================================================================
+// processEarlyIntervention
+// =============================================================================
+
+/**
+ * Processes a single `early-intervention` BullMQ job.
+ *
+ * For each enrollment: projects final attendance and upserts `atRiskPredicted`.
+ * Groups at-risk students by HOD department and enqueues email reports.
  *
  * @param job - BullMQ job containing {@link EarlyInterventionJobData}.
- * @returns A promise that resolves once all at-risk predictions are updated.
+ * @returns A promise that resolves once all predictions and notifications are queued.
  */
 export async function processEarlyIntervention(job: Job<EarlyInterventionJobData>): Promise<void> {
   const { semesterId } = job.data;
 
   const semester = await prisma.semester.findUnique({
     where: { id: semesterId },
-    select: { eligibilityThreshold: true },
+    select: { eligibilityThreshold: true, examStartDate: true },
   });
   if (!semester) return;
 
-  const threshold = semester.eligibilityThreshold;
+  const { eligibilityThreshold: threshold, examStartDate } = semester;
 
-  // Get all PENDING/BARRED eligibility records
-  const records = await prisma.examEligibility.findMany({
-    where: { semesterId, status: { in: ['PENDING', 'BARRED'] } },
-    include: {
-      enrollment: {
-        include: {
-          courseSection: {
-            include: {
-              sessions: { where: { status: { in: ['CLOSED', 'LOCKED'] } }, select: { id: true } },
-              course: { select: { code: true } },
-            },
-          },
-          attendanceRecords: { select: { status: true } },
-          student: {
-            include: {
-              user: { select: { id: true } },
-              programme: {
-                include: {
-                  department: {
-                    include: { hodId: true } as never,
-                  },
-                },
-              },
-            },
+  // Fetch all active enrollments with attendance and section data
+  const enrollments = await prisma.courseEnrollment.findMany({
+    where: { courseSection: { semesterId }, droppedAt: null },
+    select: {
+      id: true,
+      courseSectionId: true,
+      student: {
+        select: {
+          id: true,
+          matricNumber: true,
+          programme: { select: { departmentId: true } },
+          user: { select: { fullName: true } },
+        },
+      },
+      courseSection: {
+        select: {
+          course: { select: { code: true, title: true } },
+          sessions: {
+            where: { status: { in: ['CLOSED', 'LOCKED'] } },
+            select: { id: true },
           },
         },
       },
+      attendanceRecords: { select: { status: true } },
     },
   });
 
-  // HOD report map: departmentId → list of at-risk entries
+  /** HOD report map: departmentId → at-risk entries for email body. */
   const hodReports = new Map<
     string,
-    Array<{ studentName: string; courseCode: string; currentPct: number; projectedPct: number }>
+    Array<{
+      studentName: string;
+      matricNumber: string;
+      courseCode: string;
+      courseTitle: string;
+      currentPct: number;
+      projectedPct: number;
+      classesNeeded: number;
+    }>
   >();
 
-  for (const record of records) {
-    const totalSessions = record.enrollment.courseSection.sessions.length;
-    const presentCount = record.enrollment.attendanceRecords.filter((r) =>
+  // Project each enrollment and update atRiskPredicted
+  for (const enrollment of enrollments) {
+    const totalSessionsSoFar = enrollment.courseSection.sessions.length;
+    const currentPresent = enrollment.attendanceRecords.filter((r) =>
       ['PRESENT', 'LATE', 'MANUAL_OVERRIDE', 'EXCUSED'].includes(r.status),
     ).length;
 
-    // Estimate remaining sessions (assume 2 per week for 4 remaining weeks)
-    const remainingSessions = 8;
-    const projected = projectFinalPercentage(presentCount, totalSessions, remainingSessions);
+    const remainingSessions = examStartDate
+      ? await estimateRemainingSessions(examStartDate, enrollment.courseSectionId)
+      : 0;
 
-    if (projected < threshold) {
-      // Mark as at-risk
-      await prisma.examEligibility.update({
-        where: { id: record.id },
-        data: { atRiskPredicted: true },
-      });
+    const projectedFinalPercentage = projectFinalPercentage(
+      currentPresent,
+      totalSessionsSoFar,
+      remainingSessions,
+    );
 
-      const deptId = record.enrollment.student.programme.departmentId;
+    const eligibility = await prisma.examEligibility.findFirst({
+      where: { enrollmentId: enrollment.id, semesterId },
+      select: { id: true, effectivePercentage: true },
+    });
+    if (!eligibility) continue;
+
+    const isAtRisk = projectedFinalPercentage < threshold;
+
+    // Upsert atRiskPredicted — resets to false when student improves
+    await prisma.examEligibility.update({
+      where: { id: eligibility.id },
+      data: { atRiskPredicted: isAtRisk },
+    });
+
+    if (isAtRisk) {
+      const needed = classesNeededForThreshold(
+        currentPresent,
+        totalSessionsSoFar,
+        remainingSessions,
+        threshold,
+      );
+      const deptId = enrollment.student.programme.departmentId;
       const existing = hodReports.get(deptId) ?? [];
       existing.push({
-        studentName: (record.enrollment.student as unknown as { user: { fullName: string } }).user
-          .fullName,
-        courseCode: record.enrollment.courseSection.course.code,
-        currentPct: record.effectivePercentage,
-        projectedPct: projected,
+        studentName: enrollment.student.user.fullName,
+        matricNumber: enrollment.student.matricNumber,
+        courseCode: enrollment.courseSection.course.code,
+        courseTitle: enrollment.courseSection.course.title,
+        currentPct: eligibility.effectivePercentage,
+        projectedPct: projectedFinalPercentage,
+        classesNeeded: needed,
       });
       hodReports.set(deptId, existing);
     }
   }
 
-  // Notify HODs with their at-risk reports
+  // Notify HODs with formatted Early Intervention Report
   for (const [deptId, atRiskList] of hodReports) {
+    const department = await prisma.department.findUnique({
+      where: { id: deptId },
+      select: { name: true },
+    });
     const hod = await prisma.user.findFirst({
       where: { role: 'HOD', scopeId: deptId },
-      select: { id: true },
+      select: { id: true, fullName: true },
     });
-    if (hod) {
-      const summary = atRiskList
-        .map(
-          (e) =>
-            `${e.studentName} — ${e.courseCode}: ${e.currentPct}% (projected: ${e.projectedPct}%)`,
-        )
-        .join('\n');
-      void notificationQueue.add('dispatch', {
-        recipientId: hod.id,
-        trigger: 'COURSE_AVERAGE_LOW',
-        data: {
-          recipientName: 'HOD',
-          courseCode: 'Multiple',
-          average: String(atRiskList.length),
-          summary,
-        },
-      });
+    if (!hod) continue;
+
+    // Group by course for the report body
+    const byCourse = new Map<string, typeof atRiskList>();
+    for (const entry of atRiskList) {
+      const key = `${entry.courseCode} — ${entry.courseTitle}`;
+      const list = byCourse.get(key) ?? [];
+      list.push(entry);
+      byCourse.set(key, list);
     }
+
+    const reportLines: string[] = [];
+    for (const [courseLabel, students] of byCourse) {
+      reportLines.push(courseLabel);
+      for (const s of students) {
+        reportLines.push(
+          `  - ${s.matricNumber} ${s.studentName}: Current ${s.currentPct}%, Projected ${s.projectedPct}%, Needs ${s.classesNeeded} more classes`,
+        );
+      }
+    }
+
+    const deptName = department?.name ?? deptId;
+    const reportDate = new Date().toDateString();
+    const summary = [
+      `Subject: Early Intervention Report — ${deptName} — ${reportDate}`,
+      '',
+      'The following students are projected to miss the exam eligibility threshold',
+      'before the end of the semester:',
+      '',
+      ...reportLines,
+      '',
+      'This report is generated automatically every Monday. No action has been taken.',
+      'Please review and contact at-risk students.',
+    ].join('\n');
+
+    void notificationQueue.add('dispatch', {
+      recipientId: hod.id,
+      trigger: 'COURSE_AVERAGE_LOW',
+      data: {
+        recipientName: hod.fullName ?? 'HOD',
+        courseCode: 'Multiple',
+        average: String(atRiskList.length),
+        summary,
+      },
+    });
   }
 
   console.info(
-    `[early-intervention] Processed ${records.length} records for semester ${semesterId}`,
+    `[early-intervention] Processed ${enrollments.length} enrollments for semester ${semesterId}. At-risk departments: ${hodReports.size}`,
   );
 }
+
+// =============================================================================
+// Worker instance
+// =============================================================================
 
 /**
  * BullMQ worker instance for the `early-intervention` queue.
