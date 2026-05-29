@@ -36,6 +36,29 @@ function getISOWeek(date: Date): number {
 }
 
 /**
+ * Returns the day-of-week name (matching the `DayOfWeek` enum) for a date.
+ *
+ * @param date - Any `Date` value.
+ * @returns Day name string, e.g. `'MONDAY'`.
+ */
+function getDayOfWeek(date: Date): string {
+  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  return days[date.getDay()] ?? 'MONDAY';
+}
+
+/**
+ * Returns the `HH:MM` 24-hour time string for a date in local time.
+ *
+ * @param date - Any `Date` value.
+ * @returns Time string, e.g. `'08:00'`.
+ */
+function getHHMM(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/**
  * Returns `true` if a sorted array of ISO week numbers contains a run of
  * 3 or more consecutive weeks.
  *
@@ -85,7 +108,7 @@ export async function detectTimetableConflicts(semesterId: string): Promise<void
   let newFlagCount = 0;
 
   for (const studentId of studentIds) {
-    // Fetch all ABSENT records with timetable slot context
+    // Fetch all ABSENT records for this student in the semester
     const absences = await prisma.attendanceRecord.findMany({
       where: {
         studentId,
@@ -97,25 +120,24 @@ export async function detectTimetableConflicts(semesterId: string): Promise<void
           select: {
             scheduledStart: true,
             courseSectionId: true,
-            timetableEntry: { select: { dayOfWeek: true, startTime: true } },
           },
         },
       },
     });
 
-    // Group by dayOfWeek|startTime slot
+    // Group by dayOfWeek|startTime derived from scheduledStart
     const slotMap = new Map<string, { courseSectionIds: Set<string>; weeks: Set<number> }>();
     for (const absence of absences) {
-      const entry = absence.session.timetableEntry;
-      if (!entry) continue;
-
-      const slotKey = `${entry.dayOfWeek}|${entry.startTime}`;
-      const isoWeek = getISOWeek(absence.session.scheduledStart);
+      const { scheduledStart, courseSectionId } = absence.session;
+      const dayOfWeek = getDayOfWeek(scheduledStart);
+      const startTime = getHHMM(scheduledStart);
+      const slotKey = `${dayOfWeek}|${startTime}`;
+      const isoWeek = getISOWeek(scheduledStart);
       const existing = slotMap.get(slotKey) ?? {
         courseSectionIds: new Set<string>(),
         weeks: new Set<number>(),
       };
-      existing.courseSectionIds.add(absence.session.courseSectionId);
+      existing.courseSectionIds.add(courseSectionId);
       existing.weeks.add(isoWeek);
       slotMap.set(slotKey, existing);
     }
