@@ -130,3 +130,61 @@ export async function generateCertificateHandler(
   );
   void reply.status(200).send(result);
 }
+
+/**
+ * Handles `GET /reports/class-register/:courseSectionId`.
+ *
+ * Returns a pre-signed download URL for an existing class register PDF.
+ * Returns 404 if the PDF has not been generated yet.
+ *
+ * @param request - Fastify request. Params: `courseSectionId`. Query: `semesterId`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ */
+export async function getClassRegisterHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { courseSectionId } = request.params as { courseSectionId: string };
+  const { semesterId } = request.query as { semesterId: string };
+  const { s3KeyExists, getPresignedUrl } = await import('../../lib/s3.js');
+  const { env } = await import('../../config/env.js');
+  const s3Key = `registers/${courseSectionId}-${semesterId}.pdf`;
+  if (!(await s3KeyExists(env.AWS_S3_BUCKET_REPORTS, s3Key))) {
+    void reply
+      .status(404)
+      .send({ errors: [{ code: 'NOT_FOUND', message: 'Class register not yet generated.' }] });
+    return;
+  }
+  const downloadUrl = await getPresignedUrl(env.AWS_S3_BUCKET_REPORTS, s3Key, 3600);
+  void reply.status(200).send({ downloadUrl, generatedAt: new Date().toISOString() });
+}
+
+/**
+ * Handles `GET /reports/report-card/:studentId`.
+ *
+ * Returns a pre-signed download URL for an existing student report card PDF.
+ * Returns 404 if the PDF has not been generated yet.
+ *
+ * @param request - Fastify request. Params: `studentId`. Query: `semesterId`.
+ * @param reply   - Fastify reply used to send the HTTP response.
+ * @returns A promise that resolves once the response is sent.
+ */
+export async function getReportCardHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { studentId } = request.params as { studentId: string };
+  const { semesterId } = request.query as { semesterId: string };
+  const { s3KeyExists, getPresignedUrl } = await import('../../lib/s3.js');
+  const { env } = await import('../../config/env.js');
+  const s3Key = `report-cards/${studentId}-${semesterId}.pdf`;
+  if (!(await s3KeyExists(env.AWS_S3_BUCKET_REPORTS, s3Key))) {
+    void reply
+      .status(404)
+      .send({ errors: [{ code: 'NOT_FOUND', message: 'Report card not yet generated.' }] });
+    return;
+  }
+  const downloadUrl = await getPresignedUrl(env.AWS_S3_BUCKET_REPORTS, s3Key, 3600);
+  void reply.status(200).send({ downloadUrl, generatedAt: new Date().toISOString() });
+}

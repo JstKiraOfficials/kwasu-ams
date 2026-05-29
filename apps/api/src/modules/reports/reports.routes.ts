@@ -4,13 +4,15 @@
  *
  * Fastify route registrations for the reports module.
  *
- * | Method | Path                    | Roles                                    |
- * |--------|-------------------------|------------------------------------------|
- * | POST   | /reports/generate       | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD |
- * | GET    | /reports/templates      | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD |
- * | POST   | /reports/templates      | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD |
- * | POST   | /reports/nuc-package    | SUPER_ADMIN, ACADEMIC_AFFAIRS            |
- * | POST   | /reports/certificates   | STUDENT                                  |
+ * | Method | Path                                    | Roles                                    |
+ * |--------|-----------------------------------------|------------------------------------------|
+ * | POST   | /reports/generate                       | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD |
+ * | GET    | /reports/templates                      | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD |
+ * | POST   | /reports/templates                      | SUPER_ADMIN, ACADEMIC_AFFAIRS, DEAN, HOD |
+ * | POST   | /reports/nuc-package                    | SUPER_ADMIN, ACADEMIC_AFFAIRS            |
+ * | POST   | /reports/certificates                   | STUDENT                                  |
+ * | GET    | /reports/class-register/:courseSectionId | LECTURER, HOD, SUPER_ADMIN               |
+ * | GET    | /reports/report-card/:studentId         | STUDENT, HOD, SUPER_ADMIN                |
  */
 
 import { type FastifyInstance } from 'fastify';
@@ -135,5 +137,55 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
       },
     },
     controller.generateCertificateHandler,
+  );
+
+  // ── GET /reports/class-register/:courseSectionId ─────────────────────────
+  app.get(
+    '/reports/class-register/:courseSectionId',
+    {
+      preHandler: [authenticate, requireRoles(Role.LECTURER, Role.HOD, Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['reports'],
+        summary: 'Get a pre-signed URL for a course class register PDF',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['courseSectionId'],
+          properties: { courseSectionId: { type: 'string', format: 'uuid' } },
+        },
+        querystring: {
+          type: 'object',
+          required: ['semesterId'],
+          properties: { semesterId: { type: 'string', format: 'uuid' } },
+        },
+        response: { 200: { type: 'object', additionalProperties: true } },
+      },
+    },
+    controller.getClassRegisterHandler,
+  );
+
+  // ── GET /reports/report-card/:studentId ───────────────────────────────────
+  app.get(
+    '/reports/report-card/:studentId',
+    {
+      preHandler: [authenticate, requireRoles(Role.STUDENT, Role.HOD, Role.SUPER_ADMIN)],
+      schema: {
+        tags: ['reports'],
+        summary: 'Get a pre-signed URL for a student semester report card PDF',
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['studentId'],
+          properties: { studentId: { type: 'string', format: 'uuid' } },
+        },
+        querystring: {
+          type: 'object',
+          required: ['semesterId'],
+          properties: { semesterId: { type: 'string', format: 'uuid' } },
+        },
+        response: { 200: { type: 'object', additionalProperties: true } },
+      },
+    },
+    controller.getReportCardHandler,
   );
 }

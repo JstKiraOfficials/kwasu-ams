@@ -14,7 +14,7 @@
 
 import { prisma } from '../../lib/prisma.js';
 import { generatePdf } from '../../lib/pdf-generator.js';
-import { uploadToS3, getPresignedUrl } from '../../lib/s3.js';
+import { uploadToS3, getPresignedUrl, s3KeyExists } from '../../lib/s3.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../middleware/error-handler.js';
 
@@ -51,6 +51,17 @@ export async function generateAttendanceCertificate(
       'Certificates can only be generated for completed semesters.',
       400,
     );
+  }
+
+  // Check if certificate already exists in S3 — return without regenerating
+  const s3Key = `certificates/${studentId}/${courseSectionId}-${semesterId}.pdf`;
+  if (await s3KeyExists(env.AWS_S3_BUCKET_REPORTS, s3Key)) {
+    const downloadUrl = await getPresignedUrl(
+      env.AWS_S3_BUCKET_REPORTS,
+      s3Key,
+      CERTIFICATE_URL_EXPIRY,
+    );
+    return { downloadUrl, checksum: '' };
   }
 
   // Query student and course data
@@ -96,7 +107,6 @@ export async function generateAttendanceCertificate(
   ]);
 
   // Upload to S3
-  const s3Key = `certificates/${studentId}/${courseSectionId}-${semesterId}.pdf`;
   await uploadToS3(env.AWS_S3_BUCKET_REPORTS, s3Key, buffer, 'application/pdf');
 
   const downloadUrl = await getPresignedUrl(
