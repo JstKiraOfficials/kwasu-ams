@@ -96,10 +96,13 @@ export async function getStudentAnalyticsHandler(
  * @returns A promise that resolves once the response is sent.
  */
 export async function getLiveHeatmapHandler(
-  _request: FastifyRequest,
+  request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
-  const result = await getLiveHeatmap();
+  // For DEAN users, scopeId is their facultyId — filter heatmap to faculty venues
+  const facultyId =
+    request.user!.role === 'DEAN' ? (request.user!.scopeId ?? undefined) : undefined;
+  const result = await getLiveHeatmap(facultyId);
   void reply.status(200).send(result);
 }
 

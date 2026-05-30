@@ -15,7 +15,7 @@
  * block the application or retry indefinitely.
  */
 
-import { Queue } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import { redis } from '../lib/redis.js';
 
 // =============================================================================
@@ -337,11 +337,31 @@ export const smartConflictQueue = new Queue<SmartConflictDetectionJobData>(
 );
 
 /**
- * BullMQ queue for attendance heatmap refresh jobs (Phase 34).
+ * BullMQ queue for attendance heatmap refresh jobs.
  *
- * Placeholder — worker implemented in Phase 34.
+ * Enqueued every 30 seconds by the heatmap refresh scheduler.
  */
 export const heatmapRefreshQueue = new Queue('heatmap-refresh', {
   connection: redis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
+});
+
+/**
+ * Inline BullMQ worker for the `heatmap-refresh` queue.
+ *
+ * Runs every 30 seconds (scheduled by `registerHeatmapRefreshScheduler`).
+ * Refreshes the Redis heatmap cache for all university venues.
+ * The import is lazy to avoid a circular dependency at module load time.
+ */
+export const heatmapRefreshWorker = new Worker(
+  'heatmap-refresh',
+  async () => {
+    const { refreshHeatmapCache } = await import('../modules/analytics/heatmap.service.js');
+    await refreshHeatmapCache();
+  },
+  { connection: redis, concurrency: 1 },
+);
+
+heatmapRefreshWorker.on('failed', (_job, err) => {
+  console.error('[heatmap-refresh] Refresh job failed:', err.message);
 });

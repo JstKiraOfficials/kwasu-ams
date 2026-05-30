@@ -24,6 +24,7 @@ import {
   earlyInterventionQueue,
   accountabilityQueue,
   smartConflictQueue,
+  heatmapRefreshQueue,
 } from '../queue.js';
 import { prisma } from '../../lib/prisma.js';
 
@@ -97,4 +98,25 @@ export async function registerWeeklySchedulers(): Promise<void> {
   );
 
   console.info('[weekly-scheduler] Registered 5 weekly scheduled jobs');
+}
+
+// =============================================================================
+// Heatmap refresh scheduler
+// =============================================================================
+
+/**
+ * Registers the 30-second repeating heatmap cache refresh job.
+ *
+ * This is called at server startup independently of the weekly scheduler so
+ * the heatmap always refreshes even when no active semester exists.
+ *
+ * @returns A promise that resolves once the job has been enqueued.
+ */
+export async function registerHeatmapRefreshScheduler(): Promise<void> {
+  await heatmapRefreshQueue.add(
+    'refresh',
+    {},
+    { repeat: { every: 30_000 }, jobId: 'heatmap-refresh-repeating' },
+  );
+  console.info('[weekly-scheduler] Registered heatmap refresh job (every 30 s)');
 }
