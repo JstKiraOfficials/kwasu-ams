@@ -205,22 +205,22 @@ vi.mock('../lib/s3.js', () => ({
 }));
 
 vi.mock('../plugins/cors.js', () => ({
-  default: async (app: any) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/helmet.js', () => ({
-  default: async (app: any) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/rate-limiter.js', () => ({
-  default: async (app: any) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/swagger.js', () => ({
-  default: async (app: any) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/multipart.js', () => ({
-  default: async (app: any) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('@fastify/websocket', () => ({
-  default: async (app: any) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../websocket/index.js', () => ({ registerWebSocketRoutes: vi.fn() }));
 
@@ -231,6 +231,7 @@ vi.mock('../websocket/index.js', () => ({ registerWebSocketRoutes: vi.fn() }));
 import { createApp } from '../app.js';
 import { signAccessToken } from '../lib/jwt.js';
 import { prisma } from '../lib/prisma.js';
+import { type Role } from '@kwasu-ams/types';
 
 // =============================================================================
 // Token factory helpers
@@ -240,10 +241,10 @@ const FAKE_UUID = 'a0000000-0000-4000-8000-000000000001';
 const FAKE_UUID_2 = 'a0000000-0000-4000-8000-000000000002';
 
 /** Signs a valid access token for the given role. */
-function makeToken(role: string, scopeId: string | null = null): string {
+function makeToken(role: Role, scopeId: string | null = null): string {
   return signAccessToken({
     userId: FAKE_UUID,
-    role: role as any,
+    role,
     scopeId,
     sessionId: 'sess-test',
   });
@@ -264,15 +265,15 @@ function authHeader(token: string) {
 }
 
 /** Mock the authenticate middleware to resolve a specific role from DB. */
-function mockUserAs(role: string, scopeId: string | null = null) {
+function mockUserAs(role: Role, scopeId: string | null = null) {
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     id: FAKE_UUID,
-    role: role as any,
+    role,
     scopeId,
     isActive: true,
     deletedAt: null,
     lockoutUntil: null,
-  } as any);
+  } as never);
 }
 
 // =============================================================================

@@ -69,8 +69,8 @@ vi.mock('../../queue.js', () => ({
 }));
 
 vi.mock('pdfkit', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const EventEmitter = require('events');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   class FakePDF extends EventEmitter {
     page = { height: 842, width: 1190, margins: { left: 30, right: 30 } };
     y = 100;
