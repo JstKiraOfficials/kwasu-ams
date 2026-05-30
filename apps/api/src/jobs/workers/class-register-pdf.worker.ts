@@ -82,7 +82,6 @@ export async function processClassRegisterPdf(job: Job<ClassRegisterJobData>): P
           attendanceRecords: {
             select: { studentId: true, status: true, enrollmentId: true },
           },
-          manualOverride: false,
         },
       },
     },
@@ -102,7 +101,8 @@ export async function processClassRegisterPdf(job: Job<ClassRegisterJobData>): P
     },
     select: {
       justification: true,
-      actor: { select: { fullName: true } },
+      actorId: true,
+      actorRole: true,
       attendanceRecord: {
         select: { studentId: true, session: { select: { scheduledStart: true } } },
       },
@@ -136,7 +136,7 @@ export async function processClassRegisterPdf(job: Job<ClassRegisterJobData>): P
   // Build footnotes for MANUAL_OVERRIDE cells
   const footnotes: string[] = overrides.map(
     (o) =>
-      `M = Manual Override — ${o.actor?.fullName ?? 'Unknown'} — ${o.justification.slice(0, 60)}`,
+      `M = Manual Override — ${o.actorRole} (${o.actorId.slice(0, 8)}) — ${o.justification.slice(0, 60)}`,
   );
 
   const courseLabel = `${section.course.code} — ${section.course.title}`;

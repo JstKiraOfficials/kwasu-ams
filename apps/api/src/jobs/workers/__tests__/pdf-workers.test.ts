@@ -239,8 +239,10 @@ describe('processStudentReportCard — trend comparison', () => {
     } as never);
 
     vi.mocked(prisma.examEligibility.findMany).mockImplementation(
-      async ({ where }: { where?: { semesterId?: string } }) => {
-        if (where?.semesterId === SEMESTER_ID) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (async (args?: any) => {
+        const semesterId = args?.where?.semesterId as string | undefined;
+        if (semesterId === SEMESTER_ID) {
           // Current semester: 80% effective
           return [
             {
@@ -263,7 +265,7 @@ describe('processStudentReportCard — trend comparison', () => {
             enrollment: { courseSection: { courseId: COURSE_A_ID } },
           },
         ] as never;
-      },
+      }) as never,
     );
 
     vi.mocked(prisma.excuseLetter.findMany).mockResolvedValue([] as never);
