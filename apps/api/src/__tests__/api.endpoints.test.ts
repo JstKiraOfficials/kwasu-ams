@@ -205,22 +205,22 @@ vi.mock('../lib/s3.js', () => ({
 }));
 
 vi.mock('../plugins/cors.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => { }),
 }));
 vi.mock('../plugins/helmet.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => { }),
 }));
 vi.mock('../plugins/rate-limiter.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => { }),
 }));
 vi.mock('../plugins/swagger.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => { }),
 }));
 vi.mock('../plugins/multipart.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => { }),
 }));
 vi.mock('@fastify/websocket', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => {}),
+  default: async (app: FastifyInstance) => app.register(async () => { }),
 }));
 vi.mock('../websocket/index.js', () => ({ registerWebSocketRoutes: vi.fn() }));
 
@@ -231,7 +231,7 @@ vi.mock('../websocket/index.js', () => ({ registerWebSocketRoutes: vi.fn() }));
 import { createApp } from '../app.js';
 import { signAccessToken } from '../lib/jwt.js';
 import { prisma } from '../lib/prisma.js';
-import { type Role } from '@kwasu-ams/types';
+import { Role } from '@kwasu-ams/types';
 
 // =============================================================================
 // Token factory helpers
@@ -251,13 +251,14 @@ function makeToken(role: Role, scopeId: string | null = null): string {
 }
 
 const tokens = {
-  superAdmin: makeToken('SUPER_ADMIN'),
-  academicAffairs: makeToken('ACADEMIC_AFFAIRS'),
-  vc: makeToken('VICE_CHANCELLOR'),
-  dean: makeToken('DEAN', FAKE_UUID_2),
-  hod: makeToken('HOD', FAKE_UUID_2),
-  lecturer: makeToken('LECTURER', FAKE_UUID_2),
-  student: makeToken('STUDENT'),
+  superAdmin: makeToken(Role.SUPER_ADMIN),
+  academicAffairs: makeToken(Role.ACADEMIC_AFFAIRS),
+  vc: makeToken(Role.VICE_CHANCELLOR),
+  dean: makeToken(Role.DEAN, FAKE_UUID_2),
+  hod: makeToken(Role.HOD, FAKE_UUID_2),
+  lecturer: makeToken(Role.LECTURER, FAKE_UUID_2),
+  student: makeToken(Role.STUDENT),
+
 };
 
 function authHeader(token: string) {
@@ -395,7 +396,7 @@ describe('GET /admin/users', () => {
   });
 
   it('403 — STUDENT role', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/admin/users',
@@ -405,7 +406,7 @@ describe('GET /admin/users', () => {
   });
 
   it('200 — SUPER_ADMIN role', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/admin/users',
@@ -422,7 +423,7 @@ describe('POST /admin/users', () => {
   });
 
   it('403 — LECTURER role', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'POST',
       url: '/admin/users',
@@ -440,7 +441,7 @@ describe('GET /admin/users/:id', () => {
   });
 
   it('404 or 200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: `/admin/users/${FAKE_UUID}`,
@@ -489,7 +490,7 @@ describe('GET /admin/academic-sessions', () => {
   });
 
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/admin/academic-sessions',
@@ -538,7 +539,7 @@ describe('GET /users/me', () => {
   });
 
   it('200 or 404 — authenticated', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/users/me',
@@ -579,7 +580,7 @@ describe('GET /faculties', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/faculties',
@@ -595,7 +596,7 @@ describe('POST /faculties', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/faculties',
@@ -612,7 +613,7 @@ describe('GET /faculties/:id', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('404 or 200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: `/faculties/${FAKE_UUID}`,
@@ -646,7 +647,7 @@ describe('GET /departments', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/departments',
@@ -698,7 +699,7 @@ describe('GET /programmes', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/programmes',
@@ -746,7 +747,7 @@ describe('GET /courses', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/courses',
@@ -762,7 +763,7 @@ describe('POST /courses', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/courses',
@@ -844,7 +845,7 @@ describe('GET /venues', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/venues',
@@ -899,7 +900,7 @@ describe('POST /timetable', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/timetable',
@@ -955,7 +956,7 @@ describe('GET /students', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot list all students', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/students',
@@ -964,7 +965,7 @@ describe('GET /students', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/students',
@@ -1005,7 +1006,7 @@ describe('GET /lecturers', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/lecturers',
@@ -1046,7 +1047,7 @@ describe('GET /devices', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/devices',
@@ -1076,7 +1077,7 @@ describe('POST /admin/devices/:id/approve', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: `/admin/devices/${FAKE_UUID}/approve`,
@@ -1103,7 +1104,7 @@ describe('GET /sessions', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — LECTURER', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'GET',
       url: '/sessions',
@@ -1119,7 +1120,7 @@ describe('POST /sessions', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot create session', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/sessions',
@@ -1143,7 +1144,7 @@ describe('PATCH /sessions/:id/open', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'PATCH',
       url: `/sessions/${FAKE_UUID}/open`,
@@ -1230,7 +1231,7 @@ describe('GET /attendance', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — LECTURER', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'GET',
       url: '/attendance',
@@ -1246,7 +1247,7 @@ describe('POST /attendance/checkin/gps', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — LECTURER cannot check in as student', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'POST',
       url: '/attendance/checkin/gps',
@@ -1281,7 +1282,7 @@ describe('GET /excuses', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/excuses',
@@ -1297,7 +1298,7 @@ describe('POST /excuses', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — LECTURER cannot submit excuse', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'POST',
       url: '/excuses',
@@ -1325,7 +1326,7 @@ describe('PATCH /excuses/:id/review', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot review excuse', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'PATCH',
       url: `/excuses/${FAKE_UUID}/review`,
@@ -1392,7 +1393,7 @@ describe('GET /eligibility/at-risk', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/eligibility/at-risk',
@@ -1459,7 +1460,7 @@ describe('GET /anomalies', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot view anomaly flags', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/anomalies',
@@ -1468,7 +1469,7 @@ describe('GET /anomalies', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/anomalies',
@@ -1495,7 +1496,7 @@ describe('PATCH /anomalies/:id/review', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'PATCH',
       url: `/anomalies/${FAKE_UUID}/review`,
@@ -1516,7 +1517,7 @@ describe('GET /notifications', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/notifications',
@@ -1550,7 +1551,7 @@ describe('POST /notifications/warn-student', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot send warnings', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/notifications/warn-student',
@@ -1571,7 +1572,7 @@ describe('GET /dashboard', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — any authenticated role', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/dashboard',
@@ -1587,7 +1588,7 @@ describe('GET /analytics/course/:courseSectionId', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot view course analytics', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: `/analytics/course/${FAKE_UUID}`,
@@ -1596,7 +1597,7 @@ describe('GET /analytics/course/:courseSectionId', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — LECTURER', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'GET',
       url: `/analytics/course/${FAKE_UUID}`,
@@ -1612,7 +1613,7 @@ describe('GET /analytics/student/:studentId', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: `/analytics/student/${FAKE_UUID}`,
@@ -1628,7 +1629,7 @@ describe('GET /analytics/heatmap/live', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — LECTURER cannot view heatmap', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/heatmap/live',
@@ -1637,7 +1638,7 @@ describe('GET /analytics/heatmap/live', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('403 — STUDENT cannot view heatmap', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/heatmap/live',
@@ -1646,7 +1647,7 @@ describe('GET /analytics/heatmap/live', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/heatmap/live',
@@ -1655,7 +1656,7 @@ describe('GET /analytics/heatmap/live', () => {
     expect([200, 403, 404, 500]).toContain(res.statusCode);
   });
   it('200 — VICE_CHANCELLOR', async () => {
-    mockUserAs('VICE_CHANCELLOR');
+    mockUserAs(Role.VICE_CHANCELLOR);
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/heatmap/live',
@@ -1664,7 +1665,7 @@ describe('GET /analytics/heatmap/live', () => {
     expect([200, 403, 404, 500]).toContain(res.statusCode);
   });
   it('200 — DEAN', async () => {
-    mockUserAs('DEAN', FAKE_UUID_2);
+    mockUserAs(Role.DEAN, FAKE_UUID_2);
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/heatmap/live',
@@ -1684,7 +1685,7 @@ describe('POST /reports/generate', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/reports/generate',
@@ -1701,7 +1702,7 @@ describe('GET /reports/templates', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/reports/templates',
@@ -1724,7 +1725,7 @@ describe('POST /reports/nuc-package', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'POST',
       url: '/reports/nuc-package',
@@ -1741,7 +1742,7 @@ describe('POST /reports/certificates', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — LECTURER cannot generate student certificate', async () => {
-    mockUserAs('LECTURER');
+    mockUserAs(Role.LECTURER);
     const res = await app.inject({
       method: 'POST',
       url: '/reports/certificates',
@@ -1758,7 +1759,7 @@ describe('GET /reports/class-register/:courseSectionId', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: `/reports/class-register/${FAKE_UUID}`,
@@ -1785,7 +1786,7 @@ describe('GET /audit-logs', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/audit-logs',
@@ -1794,7 +1795,7 @@ describe('GET /audit-logs', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/audit-logs',
@@ -1821,7 +1822,7 @@ describe('GET /support', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('200 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/support',
@@ -1862,7 +1863,7 @@ describe('GET /welfare', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/welfare',
@@ -1871,7 +1872,7 @@ describe('GET /welfare', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/welfare',
@@ -1898,7 +1899,7 @@ describe('GET /webhooks', () => {
     expect([400, 401]).toContain(res.statusCode);
   });
   it('403 — STUDENT', async () => {
-    mockUserAs('STUDENT');
+    mockUserAs(Role.STUDENT);
     const res = await app.inject({
       method: 'GET',
       url: '/webhooks',
@@ -1907,7 +1908,7 @@ describe('GET /webhooks', () => {
     expect([400, 403]).toContain(res.statusCode);
   });
   it('200 — SUPER_ADMIN', async () => {
-    mockUserAs('SUPER_ADMIN');
+    mockUserAs(Role.SUPER_ADMIN);
     const res = await app.inject({
       method: 'GET',
       url: '/webhooks',
