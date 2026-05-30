@@ -102,17 +102,17 @@ export async function processStudentReportCard(job: Job<ReportCardJobData>): Pro
             include: { courseSection: { include: { course: { select: { id: true } } } } },
           },
         },
-        select: {
-          effectivePercentage: true,
-          enrollment: { select: { courseSection: { select: { courseId: true } } } },
-        },
       })
     : [];
 
   // Build courseId → previous effectivePercentage map
   const prevPctByCourseId = new Map<string, number>();
   for (const pe of prevEligibilities) {
-    prevPctByCourseId.set(pe.enrollment.courseSection.courseId, pe.effectivePercentage);
+    const courseId =
+      'enrollment' in pe
+        ? (pe.enrollment.courseSection.courseId ?? pe.enrollment.courseSection.course?.id)
+        : undefined;
+    if (courseId) prevPctByCourseId.set(courseId, pe.effectivePercentage);
   }
 
   // Build per-course report rows with trend
@@ -151,7 +151,7 @@ export async function processStudentReportCard(job: Job<ReportCardJobData>): Pro
   );
 
   // Generate PDF
-  const { buffer, checksum } = await generatePdf('KWASU Student Report Card', [
+  const { buffer } = await generatePdf('KWASU Student Report Card', [
     {
       heading: 'Student',
       body: `Name: ${student.user.fullName}\nMatric Number: ${student.matricNumber}`,
