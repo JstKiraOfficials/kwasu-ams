@@ -1,0 +1,93 @@
+.card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  animation: fadeInUp var(--ease-base) both;
+}
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.logoMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--color-white);
+}
+
+.heading {
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+  line-height: 1.5;
+}
+
+.toggle {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+  gap: var(--space-1);
+}
+
+.toggleBtn {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition: background var(--ease-fast), color var(--ease-fast), box-shadow var(--ease-fast);
+  min-height: 36px;
+}
+
+.toggleBtnActive {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.errorText {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.backLink {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  transition: color var(--ease-fast);
+}
+
+.backLink:hover {
+  color: var(--color-primary);
+}

@@ -1,0 +1,101 @@
+.card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  animation: fadeInUp var(--ease-base) both;
+}
+
+/* ── Logo ── */
+.logoWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.logoMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--color-white);
+  letter-spacing: 0.5px;
+}
+
+/* ── Heading ── */
+.heading {
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* ── Student / Staff toggle ── */
+.toggle {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+  gap: var(--space-1);
+}
+
+.toggleBtn {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition: background var(--ease-fast), color var(--ease-fast), box-shadow var(--ease-fast);
+  min-height: 36px;
+}
+
+.toggleBtnActive {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: var(--fw-semibold);
+}
+
+/* ── Form ── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Forgot password link ── */
+.forgotLink {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  transition: color var(--ease-fast);
+}
+
+.forgotLink:hover {
+  color: var(--color-primary);
+}
+
+/* ── Error banner ── */
+.errorText {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  text-align: center;
+  line-height: 1.4;
+}

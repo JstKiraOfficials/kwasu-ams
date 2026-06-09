@@ -7,10 +7,11 @@
  * Authentication context provider for the KWASU AMS web application.
  *
  * Responsibilities:
- * - On mount: calls `POST /auth/refresh` (using the HttpOnly cookie) to
- *   recover an existing session after a page reload.
- * - On success: calls `GET /users/me` to hydrate the user profile.
- * - Exposes `user`, `login()`, `logout()`, and `isLoading` via `AuthContext`.
+ * - On mount: calls `POST /auth/refresh` to recover an existing session.
+ * - Exposes `user`, `login()`, `logout()`, `isLoading` via `AuthContext`.
+ * - Holds a short-lived `interimToken` used between the login step and the
+ *   TOTP / change-password / setup-totp steps. Cleared on full authentication
+ *   or explicit `clearInterimToken()`.
  * - `useAuth()` is the consumer hook — throws if used outside `AuthProvider`.
  */
 
@@ -24,18 +25,36 @@ import { setTokens, clearTokens } from '../lib/auth';
 /**
  * Shape of the authentication context value.
  */
-interface AuthContextValue {
+export interface AuthContextValue {
   /** The authenticated user's public profile, or `null` when unauthenticated. */
   user: IUserPublic | null;
   /** `true` while the initial session-recovery or login request is in flight. */
   isLoading: boolean;
   /**
-   * Stores the token pair in memory and fetches the user profile.
+   * Short-lived interim token returned by `POST /auth/login`.
+   * Used only to call TOTP, change-password, and setup-totp endpoints.
+   * Never stored in `localStorage`.
+   */
+  interimToken: string | null;
+  /**
+   * Stores the interim token received from `POST /auth/login`.
+   *
+   * @param token - The short-lived interim JWT from the login response.
+   */
+  setInterimToken: (token: string) => void;
+  /**
+   * Clears the interim token without completing authentication.
+   * Called when navigating away from the auth flow.
+   */
+  clearInterimToken: () => void;
+  /**
+   * Stores the full token pair in memory and fetches the user profile.
+   * Clears `interimToken` on success.
    *
    * Call this after a successful `POST /auth/verify-totp` response.
    *
    * @param accessToken  - JWT access token (30-minute lifetime).
-   * @param refreshToken - Refresh token (passed to `setTokens` for completeness).
+   * @param refreshToken - Refresh token (stored as HttpOnly cookie by the API).
    * @returns A promise that resolves once the user profile is loaded.
    */
   login: (accessToken: string, refreshToken: string) => Promise<void>;
@@ -78,8 +97,13 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element {
   const [user, setUser] = useState<IUserPublic | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [interimToken, setInterimTokenState] = useState<string | null>(null);
 
-  /** Fetches /users/me and sets user state. */
+  /**
+   * Fetches `GET /users/me` and populates the user state.
+   *
+   * @returns A promise that resolves once the profile is loaded.
+   */
   const fetchMe = useCallback(async (): Promise<void> => {
     const me = await apiGet<IUserPublic>('/users/me');
     setUser(me);
@@ -99,7 +123,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         setTokens(data.accessToken, data.refreshToken ?? '');
         await fetchMe();
       } catch {
-        // No valid session — stay unauthenticated
         clearTokens();
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -112,6 +135,15 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     };
   }, [fetchMe]);
 
+  // ── Interim token helpers ──────────────────────────────────────────────
+  const setInterimToken = useCallback((token: string): void => {
+    setInterimTokenState(token);
+  }, []);
+
+  const clearInterimToken = useCallback((): void => {
+    setInterimTokenState(null);
+  }, []);
+
   // ── login ──────────────────────────────────────────────────────────────
   const login = useCallback(
     async (accessToken: string, refreshToken: string): Promise<void> => {
@@ -119,6 +151,8 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       try {
         setTokens(accessToken, refreshToken);
         await fetchMe();
+        // Clear interim token now that full authentication is complete
+        setInterimTokenState(null);
       } finally {
         setIsLoading(false);
       }
@@ -135,11 +169,22 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     } finally {
       clearTokens();
       setUser(null);
+      setInterimTokenState(null);
     }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        interimToken,
+        setInterimToken,
+        clearInterimToken,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -152,7 +197,8 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
  *
  * Must be called inside a component tree wrapped by `AuthProvider`.
  *
- * @returns The `AuthContextValue` containing `user`, `isLoading`, `login`, and `logout`.
+ * @returns The `AuthContextValue` with `user`, `isLoading`, `interimToken`,
+ *   `setInterimToken`, `clearInterimToken`, `login`, and `logout`.
  * @throws {Error} If called outside of an `AuthProvider`.
  */
 export function useAuth(): AuthContextValue {

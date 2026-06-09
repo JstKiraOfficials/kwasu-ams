@@ -1,0 +1,106 @@
+.card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  animation: fadeInUp var(--ease-base) both;
+}
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.logoMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--color-white);
+}
+
+.heading {
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.codeInputWrap {
+  width: 200px;
+}
+
+.codeInput {
+  text-align: center;
+  font-size: var(--text-4xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.25em;
+  width: 100%;
+  padding: var(--space-3) var(--space-2);
+  font-family: var(--font-family);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--ease-fast), box-shadow var(--ease-fast);
+}
+
+.codeInput:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+.codeInput::-webkit-outer-spin-button,
+.codeInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.countdown {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.countdownExpired {
+  color: var(--color-warning);
+}
+
+.errorText {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.backupLink {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  transition: color var(--ease-fast);
+}
+
+.backupLink:hover {
+  color: var(--color-primary);
+}

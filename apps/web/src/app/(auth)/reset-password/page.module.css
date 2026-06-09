@@ -1,0 +1,123 @@
+.card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  animation: fadeInUp var(--ease-base) both;
+}
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.logoMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--color-white);
+}
+
+.heading {
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Complexity bar (mirrors ChangePasswordForm) ── */
+.complexityBar {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.segment {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-gray-200);
+  transition: background var(--ease-fast);
+}
+
+.segmentMet {
+  background: var(--color-primary);
+}
+
+.complexityHints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  transition: color var(--ease-fast);
+}
+
+.hintMet {
+  color: var(--color-primary);
+}
+
+/* ── Error / expired states ── */
+.errorBox {
+  background: rgba(220, 38, 38, 0.06);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.expiredLink {
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-weight: var(--fw-medium);
+}
+
+.errorText {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.backLink {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  transition: color var(--ease-fast);
+}
+
+.backLink:hover {
+  color: var(--color-primary);
+}
