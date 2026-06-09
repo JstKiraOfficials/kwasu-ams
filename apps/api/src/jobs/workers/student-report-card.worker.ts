@@ -18,7 +18,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { generatePdf } from '../../lib/pdf-generator.js';
 import { uploadToS3, getPresignedUrl, s3KeyExists } from '../../lib/s3.js';
@@ -209,7 +209,7 @@ export async function processStudentReportCard(job: Job<ReportCardJobData>): Pro
 export const studentReportCardWorker = new Worker<ReportCardJobData>(
   'student-report-card',
   processStudentReportCard,
-  { connection: redis, concurrency: 2 },
+  { connection: workerRedis, concurrency: 2 },
 );
 
 studentReportCardWorker.on('failed', (job, err) => {

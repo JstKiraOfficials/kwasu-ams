@@ -13,7 +13,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { notificationQueue, type WelfareCheckJobData } from '../queue.js';
 
@@ -106,7 +106,7 @@ export async function processWelfareCheck(job: Job<WelfareCheckJobData>): Promis
 export const welfareCheckWorker = new Worker<WelfareCheckJobData>(
   'welfare-check',
   processWelfareCheck,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 welfareCheckWorker.on('failed', (job, err) => {

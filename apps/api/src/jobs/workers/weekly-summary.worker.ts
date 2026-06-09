@@ -10,7 +10,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { computeAttendancePercentage } from '@kwasu-ams/utils';
 import { notificationQueue, type WeeklySummaryJobData } from '../queue.js';
@@ -72,7 +72,7 @@ export async function processWeeklySummary(job: Job<WeeklySummaryJobData>): Prom
 export const weeklySummaryWorker = new Worker<WeeklySummaryJobData>(
   'weekly-summary',
   processWeeklySummary,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 weeklySummaryWorker.on('failed', (job, err) => {

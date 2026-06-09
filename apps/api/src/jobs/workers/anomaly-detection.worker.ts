@@ -32,7 +32,7 @@
 import { Worker, type Job } from 'bullmq';
 import { AnomalyType } from '@kwasu-ams/types';
 import { prisma } from '../../lib/prisma.js';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { createAnomalyFlag } from '../../modules/anomalies/anomalies.service.js';
 import { type AnomalyDetectionJobData } from '../queue.js';
 
@@ -318,7 +318,7 @@ export const anomalyDetectionWorker = new Worker<AnomalyDetectionJobData>(
     await processAnomalyDetection(job.data.sessionId);
   },
   {
-    connection: redis,
+    connection: workerRedis,
     concurrency: 1,
   },
 );

@@ -16,7 +16,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { type AuditLogJobData } from '../queue.js';
 
@@ -61,7 +61,7 @@ export async function processAuditLog(job: Job<AuditLogJobData>): Promise<void> 
  * 0 retries — failures are logged and discarded.
  */
 export const auditLogWorker = new Worker<AuditLogJobData>('audit-log', processAuditLog, {
-  connection: redis,
+  connection: workerRedis,
   concurrency: 5,
 });
 

@@ -10,7 +10,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { computeEligibilityForSemester } from '../../modules/eligibility/eligibility.service.js';
 import { classRegisterQueue, reportCardQueue, type SemesterReportsJobData } from '../queue.js';
@@ -90,7 +90,7 @@ export async function processSemesterReports(job: Job<SemesterReportsJobData>): 
 export const semesterReportsWorker = new Worker<SemesterReportsJobData>(
   'semester-reports',
   processSemesterReports,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 semesterReportsWorker.on('failed', (job, err) => {

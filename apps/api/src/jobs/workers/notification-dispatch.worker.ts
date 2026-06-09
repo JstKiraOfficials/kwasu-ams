@@ -10,7 +10,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { dispatch } from '../../modules/notifications/notification-dispatcher.service.js';
 import { type NotificationJobData } from '../queue.js';
 import { type NotificationTrigger } from '../../modules/notifications/notification-dispatcher.service.js';
@@ -34,7 +34,7 @@ export async function processNotificationDispatch(job: Job<NotificationJobData>)
 export const notificationDispatchWorker = new Worker<NotificationJobData>(
   'notification-dispatch',
   processNotificationDispatch,
-  { connection: redis, concurrency: 3 },
+  { connection: workerRedis, concurrency: 3 },
 );
 
 notificationDispatchWorker.on('failed', (job, err) => {

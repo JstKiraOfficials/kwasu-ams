@@ -22,7 +22,7 @@
 import { Worker, type Job } from 'bullmq';
 import { Buffer } from 'buffer';
 import PDFDocument from 'pdfkit';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { computeSha256 } from '../../lib/checksum.js';
 import { uploadToS3, getPresignedUrl, s3KeyExists } from '../../lib/s3.js';
@@ -284,7 +284,7 @@ export async function processClassRegisterPdf(job: Job<ClassRegisterJobData>): P
 export const classRegisterPdfWorker = new Worker<ClassRegisterJobData>(
   'class-register-pdf',
   processClassRegisterPdf,
-  { connection: redis, concurrency: 2 },
+  { connection: workerRedis, concurrency: 2 },
 );
 
 classRegisterPdfWorker.on('failed', (job, err) => {

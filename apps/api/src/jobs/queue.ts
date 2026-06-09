@@ -16,7 +16,7 @@
  */
 
 import { Queue, Worker } from 'bullmq';
-import { redis } from '../lib/redis.js';
+import { workerRedis } from '../lib/redis.js';
 
 // =============================================================================
 // Shared default job options
@@ -189,13 +189,15 @@ export interface BulkAccountJobData {
 /**
  * BullMQ queue for asynchronous audit log writes.
  *
- * Uses 0 retries — audit log failure must never block the application.
- * Security-critical events must use synchronous `prisma.auditLog.create()`.
+ * Uses 1 attempt (no retries) — audit log failure must never block the
+ * application or retry indefinitely. Security-critical events (login, lockout,
+ * password change, TOTP, account creation/deletion, data export) must use
+ * synchronous `prisma.auditLog.create()` instead.
  */
 export const auditLogQueue = new Queue<AuditLogJobData>('audit-log', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: {
-    attempts: 1, // No retries for audit log
+    attempts: 1,
     removeOnComplete: { count: 200 },
     removeOnFail: { count: 100 },
   },
@@ -208,7 +210,7 @@ export const auditLogQueue = new Queue<AuditLogJobData>('audit-log', {
  * `notification-dispatch.worker.ts` which calls `dispatch()`.
  */
 export const notificationQueue = new Queue<NotificationJobData>('notification-dispatch', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -218,7 +220,7 @@ export const notificationQueue = new Queue<NotificationJobData>('notification-di
  * Enqueued by `closeSession()` with a 5-second delay.
  */
 export const anomalyDetectionQueue = new Queue<AnomalyDetectionJobData>('anomaly-detection', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -229,7 +231,7 @@ export const anomalyDetectionQueue = new Queue<AnomalyDetectionJobData>('anomaly
  */
 export const eligibilityComputationQueue = new Queue<EligibilityComputationJobData>(
   'eligibility-computation',
-  { connection: redis, defaultJobOptions: DEFAULT_JOB_OPTIONS },
+  { connection: workerRedis, defaultJobOptions: DEFAULT_JOB_OPTIONS },
 );
 
 /**
@@ -238,7 +240,7 @@ export const eligibilityComputationQueue = new Queue<EligibilityComputationJobDa
  * Enqueued weekly on Mondays at 07:00 Nigeria time.
  */
 export const earlyInterventionQueue = new Queue<EarlyInterventionJobData>('early-intervention', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -248,7 +250,7 @@ export const earlyInterventionQueue = new Queue<EarlyInterventionJobData>('early
  * Enqueued weekly on Mondays at 08:00 Nigeria time.
  */
 export const accountabilityQueue = new Queue<AccountabilityJobData>('lecturer-accountability', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -258,7 +260,7 @@ export const accountabilityQueue = new Queue<AccountabilityJobData>('lecturer-ac
  * Enqueued weekly on Mondays at 06:00 Nigeria time.
  */
 export const welfareCheckQueue = new Queue<WelfareCheckJobData>('welfare-check', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -268,7 +270,7 @@ export const welfareCheckQueue = new Queue<WelfareCheckJobData>('welfare-check',
  * Enqueued weekly on Mondays at 06:00 Nigeria time.
  */
 export const weeklySummaryQueue = new Queue<WeeklySummaryJobData>('weekly-summary', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -278,7 +280,7 @@ export const weeklySummaryQueue = new Queue<WeeklySummaryJobData>('weekly-summar
  * Enqueued by the semester-end scheduler when `semester.endDate` passes.
  */
 export const semesterReportsQueue = new Queue<SemesterReportsJobData>('semester-reports', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -288,7 +290,7 @@ export const semesterReportsQueue = new Queue<SemesterReportsJobData>('semester-
  * Enqueued as sub-jobs by the semester-reports worker.
  */
 export const classRegisterQueue = new Queue<ClassRegisterJobData>('class-register-pdf', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -298,7 +300,7 @@ export const classRegisterQueue = new Queue<ClassRegisterJobData>('class-registe
  * Enqueued as sub-jobs by the semester-reports worker.
  */
 export const reportCardQueue = new Queue<ReportCardJobData>('student-report-card', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -308,7 +310,7 @@ export const reportCardQueue = new Queue<ReportCardJobData>('student-report-card
  * Enqueued by the admin bulk import endpoint after CSV upload.
  */
 export const bulkAccountQueue = new Queue<BulkAccountJobData>('bulk-account-creation', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -331,7 +333,7 @@ export interface SmartConflictDetectionJobData {
 export const smartConflictQueue = new Queue<SmartConflictDetectionJobData>(
   'smart-conflict-detection',
   {
-    connection: redis,
+    connection: workerRedis,
     defaultJobOptions: DEFAULT_JOB_OPTIONS,
   },
 );
@@ -342,7 +344,7 @@ export const smartConflictQueue = new Queue<SmartConflictDetectionJobData>(
  * Enqueued every 30 seconds by the heatmap refresh scheduler.
  */
 export const heatmapRefreshQueue = new Queue('heatmap-refresh', {
-  connection: redis,
+  connection: workerRedis,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -351,7 +353,7 @@ export const heatmapRefreshQueue = new Queue('heatmap-refresh', {
  *
  * Runs every 30 seconds (scheduled by `registerHeatmapRefreshScheduler`).
  * Refreshes the Redis heatmap cache for all university venues.
- * The import is lazy to avoid a circular dependency at module load time.
+ * The processor import is lazy to avoid a circular dependency at module load time.
  */
 export const heatmapRefreshWorker = new Worker(
   'heatmap-refresh',
@@ -359,7 +361,7 @@ export const heatmapRefreshWorker = new Worker(
     const { refreshHeatmapCache } = await import('../modules/analytics/heatmap.service.js');
     await refreshHeatmapCache();
   },
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 heatmapRefreshWorker.on('failed', (_job, err) => {

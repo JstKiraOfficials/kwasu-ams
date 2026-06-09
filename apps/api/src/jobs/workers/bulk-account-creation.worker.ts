@@ -13,7 +13,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { type BulkAccountJobData } from '../queue.js';
 
 /**
@@ -38,7 +38,7 @@ export async function processBulkAccountCreation(job: Job<BulkAccountJobData>): 
 export const bulkAccountCreationWorker = new Worker<BulkAccountJobData>(
   'bulk-account-creation',
   processBulkAccountCreation,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 bulkAccountCreationWorker.on('failed', (job, err) => {

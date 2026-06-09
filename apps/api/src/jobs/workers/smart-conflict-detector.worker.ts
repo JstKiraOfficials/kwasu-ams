@@ -12,7 +12,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { type SmartConflictDetectionJobData } from '../queue.js';
 import { detectTimetableConflicts } from '../../modules/timetable/smart-conflict-detector.service.js';
 
@@ -38,7 +38,7 @@ export async function processSmartConflictDetection(
 export const smartConflictDetectorWorker = new Worker<SmartConflictDetectionJobData>(
   'smart-conflict-detection',
   processSmartConflictDetection,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 smartConflictDetectorWorker.on('failed', (job, err) => {

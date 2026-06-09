@@ -15,7 +15,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { computeAttendancePercentage } from '@kwasu-ams/utils';
 import { type AccountabilityJobData } from '../queue.js';
@@ -128,7 +128,7 @@ export async function processLecturerAccountability(
 export const lecturerAccountabilityWorker = new Worker<AccountabilityJobData>(
   'lecturer-accountability',
   processLecturerAccountability,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 lecturerAccountabilityWorker.on('failed', (job, err) => {

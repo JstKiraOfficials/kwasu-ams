@@ -11,7 +11,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { computeEligibilityForSemester } from '../../modules/eligibility/eligibility.service.js';
 import { notificationQueue, type EligibilityComputationJobData } from '../queue.js';
@@ -96,7 +96,7 @@ export async function processEligibilityComputation(
 export const eligibilityComputationWorker = new Worker<EligibilityComputationJobData>(
   'eligibility-computation',
   processEligibilityComputation,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 eligibilityComputationWorker.on('failed', (job, err) => {

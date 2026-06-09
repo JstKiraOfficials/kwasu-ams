@@ -16,7 +16,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { workerRedis } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { projectFinalPercentage, classesNeededForThreshold } from '@kwasu-ams/utils';
 import { notificationQueue, type EarlyInterventionJobData } from '../queue.js';
@@ -244,7 +244,7 @@ export async function processEarlyIntervention(job: Job<EarlyInterventionJobData
 export const earlyInterventionWorker = new Worker<EarlyInterventionJobData>(
   'early-intervention',
   processEarlyIntervention,
-  { connection: redis, concurrency: 1 },
+  { connection: workerRedis, concurrency: 1 },
 );
 
 earlyInterventionWorker.on('failed', (job, err) => {
