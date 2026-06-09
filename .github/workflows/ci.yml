@@ -106,6 +106,22 @@ jobs:
       WEB_BASE_URL: http://localhost:3000
       CORS_ORIGINS: http://localhost:3000
 
+      # AWS S3 — stub values for CI (no real S3 calls in unit tests)
+      AWS_REGION: eu-west-1
+      AWS_ACCESS_KEY_ID: ci-stub-key-id
+      AWS_SECRET_ACCESS_KEY: ci-stub-secret-key
+      AWS_S3_BUCKET_EXCUSES: kwasu-ams-excuses-test
+      AWS_S3_BUCKET_REPORTS: kwasu-ams-reports-test
+
+      # Firebase — stub values for CI (placeholder key triggers graceful skip)
+      FIREBASE_PROJECT_ID: kwasu-ams-test
+      FIREBASE_CLIENT_EMAIL: ci@kwasu-ams-test.iam.gserviceaccount.com
+      FIREBASE_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\nci-placeholder\n-----END RSA PRIVATE KEY-----"
+
+      # SMS — stub values for CI
+      SMS_PROVIDER: africastalking
+      AFRICASTALKING_USERNAME: sandbox
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
