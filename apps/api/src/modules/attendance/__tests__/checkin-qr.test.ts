@@ -52,6 +52,7 @@ vi.mock('../../../lib/prisma.js', () => ({
 }));
 
 vi.mock('../../../lib/redis.js', () => ({
+  workerRedis: { on: vi.fn() },
   redis: {
     del: vi.fn().mockResolvedValue(1),
     set: vi.fn().mockResolvedValue('OK'),

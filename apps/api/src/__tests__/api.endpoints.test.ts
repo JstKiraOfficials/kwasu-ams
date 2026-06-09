@@ -187,6 +187,7 @@ vi.mock('../lib/prisma.js', () => ({
 }));
 
 vi.mock('../lib/redis.js', () => ({
+  workerRedis: { on: vi.fn() },
   redis: {
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn().mockResolvedValue('OK'),
@@ -205,22 +206,22 @@ vi.mock('../lib/s3.js', () => ({
 }));
 
 vi.mock('../plugins/cors.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => { }),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/helmet.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => { }),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/rate-limiter.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => { }),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/swagger.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => { }),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../plugins/multipart.js', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => { }),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('@fastify/websocket', () => ({
-  default: async (app: FastifyInstance) => app.register(async () => { }),
+  default: async (app: FastifyInstance) => app.register(async () => {}),
 }));
 vi.mock('../websocket/index.js', () => ({ registerWebSocketRoutes: vi.fn() }));
 
@@ -258,7 +259,6 @@ const tokens = {
   hod: makeToken(Role.HOD, FAKE_UUID_2),
   lecturer: makeToken(Role.LECTURER, FAKE_UUID_2),
   student: makeToken(Role.STUDENT),
-
 };
 
 function authHeader(token: string) {
