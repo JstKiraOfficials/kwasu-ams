@@ -44,6 +44,11 @@ export async function sendPushNotification(
     return; // User has not enabled push notifications
   }
 
+  if (!fcm) {
+    // Firebase not initialised (placeholder credentials in dev) — skip silently
+    return;
+  }
+
   try {
     await fcm.send({
       token: user.fcmToken,
