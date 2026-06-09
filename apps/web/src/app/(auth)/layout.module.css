@@ -1,0 +1,57 @@
+.authShell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Left: decorative image panel ── */
+.imagePanel {
+  flex: 1;
+  background: url('/background.jpg') center / cover no-repeat;
+  position: relative;
+}
+
+.imageOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 107, 60, 0.55); /* KWASU green tint — intentional hex, not a token */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--space-12);
+}
+
+.imageTagline {
+  color: var(--color-white);
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.3;
+}
+
+.imageSubtext {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: var(--text-base);
+  margin-top: var(--space-2);
+}
+
+/* ── Right: form panel ── */
+.formPanel {
+  width: 480px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  padding: var(--space-12) var(--space-10);
+}
+
+/* ── Mobile: image panel hidden, form panel full-width ── */
+@media (max-width: 767px) {
+  .imagePanel {
+    display: none;
+  }
+
+  .formPanel {
+    width: 100%;
+    padding: var(--space-8) var(--space-6);
+  }
+}

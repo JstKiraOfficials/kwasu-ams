@@ -1,0 +1,175 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Horizontal scroll wrapper — prevents layout break on small screens */
+.tableScroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+/* ── Header ── */
+.th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.thSortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--ease-fast), background var(--ease-fast);
+}
+
+.thSortable:hover {
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
+}
+
+.thSortable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.thContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sortIcon {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── Column search input ── */
+.columnSearch {
+  display: block;
+  margin-top: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-family);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--ease-fast);
+  min-height: 28px;
+}
+
+.columnSearch:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── Body rows ── */
+.tr {
+  transition: background var(--ease-fast);
+}
+
+.tr:hover {
+  background: var(--color-bg-secondary);
+}
+
+.tr:not(:last-child) .td {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.td {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+/* Empty state row */
+.empty {
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ── Pagination ── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.paginationInfo {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.paginationBtns {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pageBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  transition: background var(--ease-fast), color var(--ease-fast);
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.pageBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pageBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.pageBtnActive {
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: var(--fw-semibold);
+}
+
+.pageBtnActive:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  color: var(--color-white);
+}
+
+.ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}

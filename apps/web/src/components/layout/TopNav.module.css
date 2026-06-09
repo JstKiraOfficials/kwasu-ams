@@ -1,0 +1,231 @@
+/**
+ * @file TopNav.module.css
+ * TopNav layout styles. Uses design tokens exclusively — no hardcoded values.
+ */
+
+.topNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-4);
+}
+
+/* ── Left section: hamburger + breadcrumb ── */
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  transition: background var(--ease-fast), color var(--ease-fast);
+}
+
+.hamburger:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+/* Show hamburger only on mobile */
+.hamburgerDesktop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .hamburgerDesktop {
+    display: flex;
+  }
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.breadcrumbSeparator {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.breadcrumbCurrent {
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Right section: actions ── */
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition: background var(--ease-fast), color var(--ease-fast);
+}
+
+.iconBtn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+/* Notification badge */
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--space-1);
+  background: var(--color-danger);
+  color: var(--color-white);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── User avatar button ── */
+.avatarBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background var(--ease-fast);
+  margin-left: var(--space-1);
+}
+
+.avatarBtn:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.avatarName {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hide name on small screens */
+@media (max-width: 639px) {
+  .avatarName {
+    display: none;
+  }
+}
+
+.rolePill {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* Hide role pill on small screens */
+@media (max-width: 767px) {
+  .rolePill {
+    display: none;
+  }
+}
+
+/* ── Dropdown menu ── */
+.dropdownWrapper {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 180px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+  z-index: 200;
+  animation: scaleIn var(--ease-fast) both;
+  transform-origin: top right;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  width: 100%;
+  transition: background var(--ease-fast);
+}
+
+.dropdownItem:hover {
+  background: var(--color-bg-secondary);
+}
+
+.dropdownDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-1) 0;
+}
+
+.dropdownItemDanger {
+  color: var(--color-danger);
+}
+
+.dropdownItemDanger:hover {
+  background: rgba(220, 38, 38, 0.06);
+}

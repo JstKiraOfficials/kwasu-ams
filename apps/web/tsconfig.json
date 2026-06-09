@@ -1,0 +1,18 @@
+{
+  "extends": "@kwasu-ams/config/tsconfig/nextjs.json",
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@kwasu-ams/types": ["../../packages/types/src/index.ts"],
+      "@kwasu-ams/utils": ["../../packages/utils/src/index.ts"]
+    },
+    "plugins": [{ "name": "next" }],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}

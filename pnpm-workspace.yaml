@@ -10,3 +10,4 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   protobufjs: true
+  sharp: false
