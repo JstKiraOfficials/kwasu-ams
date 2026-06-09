@@ -1,24 +1,35 @@
 # KWASU AMS — API Reference
 
-**Base URL:** `http://localhost:3000` (dev) | `https://api.ams.kwasu.edu.ng` (prod)  
+**Base URL:** `http://localhost:3001` (dev) | `https://api.kwasu.edu.ng` (prod)  
 **Auth:** Bearer token — `Authorization: Bearer <accessToken>`  
 **Rate limit (auth routes):** 5 req/min per IP  
-**Rate limit (global):** 200 req/min per IP  
+**Rate limit (global):** 200 req/min per IP
+
+---
+
+## Health
+
+### `GET /health`
+
+**Auth:** None  
+**Description:** Checks API, database, and Redis connectivity.  
+**Response `200`:** `{ "status": "ok", "db": "connected", "redis": "connected" }`  
+**Response `503`:** If DB or Redis is unreachable.
 
 ---
 
 ## Roles
 
-| Role | Description |
-|------|-------------|
-| `SUPER_ADMIN` | Full system access |
-| `ACADEMIC_AFFAIRS` | Academic admin access |
-| `VICE_CHANCELLOR` | Executive read access |
-| `DEAN` | Faculty-level access |
-| `HOD` | Department-level access |
-| `EXAM_OFFICER` | Eligibility & exam access |
-| `LECTURER` | Teaching staff access |
-| `STUDENT` | Student access |
+| Role               | Description               |
+| ------------------ | ------------------------- |
+| `SUPER_ADMIN`      | Full system access        |
+| `ACADEMIC_AFFAIRS` | Academic admin access     |
+| `VICE_CHANCELLOR`  | Executive read access     |
+| `DEAN`             | Faculty-level access      |
+| `HOD`              | Department-level access   |
+| `EXAM_OFFICER`     | Eligibility & exam access |
+| `LECTURER`         | Teaching staff access     |
+| `STUDENT`          | Student access            |
 
 ---
 
@@ -40,71 +51,88 @@ POST /auth/logout         → invalidates refreshToken
 > All auth routes: 5 req/min rate limit.
 
 ### `POST /auth/login`
+
 **Auth:** None  
 **Description:** Password login. Returns a 5-min interim token for the TOTP step.
 
 **Request Body:**
+
 ```json
 {
-  "identifier": "22/47CSC/00001",  // matric number or staff ID
+  "identifier": "22/47CSC/00001", // matric number or staff ID
   "password": "string"
 }
 ```
+
 **Response `200`:**
+
 ```json
 { "interimToken": "string" }
 ```
+
 **Errors:** `401` wrong credentials, `423` account locked
 
 ---
 
 ### `POST /auth/verify-totp`
+
 **Auth:** Interim token (Bearer)  
 **Description:** Verifies 6-digit TOTP code. Issues full JWT pair. ±1 step tolerance (90s window).
 
 **Request Body:**
+
 ```json
 { "code": "123456" }
 ```
+
 **Response `200`:**
+
 ```json
 {
-  "accessToken": "string",  // 30-min
-  "refreshToken": "string"  // 7-day
+  "accessToken": "string", // 30-min
+  "refreshToken": "string" // 7-day
 }
 ```
+
 **Errors:** `401` invalid code, `403` TOTP not enrolled
 
 ---
 
 ### `POST /auth/setup-totp`
+
 **Auth:** Interim token (Bearer)  
 **Description:** Generates a TOTP secret. Returns QR URI for authenticator app enrollment.
 
 **Request Body:** _(none)_  
 **Response `200`:**
+
 ```json
 {
   "secret": "BASE32SECRET",
   "qrCodeUri": "otpauth://totp/KWASU-AMS:user@example.com?secret=..."
 }
 ```
+
 **Errors:** `409` already enrolled
 
 ---
 
 ### `POST /auth/confirm-totp`
+
 **Auth:** Interim token (Bearer)  
 **Description:** Confirms TOTP enrollment. Shows backup codes **once** — save them.
 
 **Request Body:**
+
 ```json
 { "code": "123456" }
 ```
+
 **Response `200`:**
+
 ```json
 {
-  "backupCodes": ["ABC12345", "XYZ67890", "..."],  // 8 codes, shown once
+  "backupCodes": ["ABC12345", "XYZ67890", "..."], // 8 codes, shown once
   "message": "TOTP enrollment complete"
 }
 ```
@@ -112,14 +140,18 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /auth/refresh`
+
 **Auth:** None  
 **Description:** Rotates token pair. Old refresh token is immediately invalidated.
 
 **Request Body:**
+
 ```json
 { "refreshToken": "string" }
 ```
+
 **Response `200`:**
+
 ```json
 {
   "accessToken": "string",
@@ -130,81 +162,96 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /auth/logout`
+
 **Auth:** Access token (Bearer)  
 **Description:** Blocklists the refresh token. Access token expires naturally.
 
 **Request Body:**
+
 ```json
-{ "refreshToken": "string" }  // optional
+{ "refreshToken": "string" } // optional
 ```
+
 **Response `200`:** `{ "message": "Logged out" }`
 
 ---
 
 ### `POST /auth/change-password`
+
 **Auth:** Access token (Bearer)  
 **Description:** Changes password. Clears `mustChangePassword` flag.
 
 **Request Body:**
+
 ```json
 {
   "currentPassword": "string",
-  "newPassword": "string"  // min 12 chars, upper+lower+digit+special
+  "newPassword": "string" // min 12 chars, upper+lower+digit+special
 }
 ```
+
 **Response `200`:** `{ "message": "Password changed" }`
 
 ---
 
 ### `POST /auth/forgot-password`
+
 **Auth:** None  
 **Description:** Sends reset link to registered email. Always returns 200 (anti-enumeration).
 
 **Request Body:**
+
 ```json
 {
   "identifier": "22/47CSC/00001",
   "email": "student@kwasu.edu.ng"
 }
 ```
+
 **Response `200`:** `{ "message": "..." }`
 
 ---
 
 ### `POST /auth/reset-password`
+
 **Auth:** None  
 **Description:** Consumes single-use reset token from email link and updates password.
 
 **Request Body:**
+
 ```json
 {
   "resetToken": "string",
   "newPassword": "string"
 }
 ```
+
 **Response `200`:** `{ "message": "Password reset" }`
 
 ---
 
 ### `POST /auth/recover-totp`
+
 **Auth:** None  
 **Description:** Bypasses TOTP using a backup code. Issues full JWT pair. Consumes the code permanently.
 
 **Request Body:**
+
 ```json
 {
   "identifier": "22/47CSC/00001",
   "recoveryCode": "ABC12345"
 }
 ```
+
 **Response `200`:**
+
 ```json
 {
   "accessToken": "string",
   "refreshToken": "string"
 }
 ```
-
 
 ---
 
@@ -213,6 +260,7 @@ POST /auth/logout         → invalidates refreshToken
 > All admin routes require `SUPER_ADMIN` unless noted.
 
 ### `GET /admin/users`
+
 **Roles:** `SUPER_ADMIN`  
 **Description:** Paginated list of all users.
 
@@ -230,10 +278,12 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /admin/users`
+
 **Roles:** `SUPER_ADMIN`  
 **Description:** Create a single user account.
 
 **Request Body:**
+
 ```json
 {
   "identifier": "KWASU/LEC/CSC/00134",
@@ -244,11 +294,13 @@ POST /auth/logout         → invalidates refreshToken
   "phone": "string"
 }
 ```
+
 **Response `201`:** User object. **`409`** if identifier already exists.
 
 ---
 
 ### `GET /admin/users/:id`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Response `200`:** Full user object. **`404`** if not found.
@@ -256,6 +308,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /admin/users/:id`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Description:** Update user fields (email, phone, isActive, role, scopeId).
@@ -266,6 +319,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `DELETE /admin/users/:id`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Description:** Soft-delete — sets `deletedAt` and `isActive = false`. Never hard-deletes.  
@@ -274,6 +328,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /admin/users/import`
+
 **Roles:** `SUPER_ADMIN`  
 **Description:** Bulk import users from a CSV file (multipart form data).
 
@@ -289,6 +344,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /admin/users/:id/reset-totp`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Description:** Clears TOTP secret and backup codes. User must re-enroll on next login.  
@@ -297,15 +353,18 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /admin/academic-sessions`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `VICE_CHANCELLOR`  
 **Response `200`:** `AcademicSession[]`
 
 ---
 
 ### `POST /admin/academic-sessions`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "name": "2024/2025",
@@ -313,11 +372,13 @@ POST /auth/logout         → invalidates refreshToken
   "endDate": "2025-07-31T00:00:00Z"
 }
 ```
+
 **Response `201`:** AcademicSession object. **`409`** if name already exists.
 
 ---
 
 ### `PATCH /admin/academic-sessions/:id/activate`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Description:** Activates this session; deactivates all others.  
@@ -326,33 +387,38 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /admin/academic-sessions/:id/semesters`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Params:** `id` (UUID) — academic session ID
 
 **Request Body:**
+
 ```json
 {
-  "type": "FIRST",                       // FIRST | SECOND | THIRD
+  "type": "FIRST", // FIRST | SECOND | THIRD
   "startDate": "2024-09-01T00:00:00Z",
   "endDate": "2025-01-31T00:00:00Z",
-  "examStartDate": "2025-01-15T00:00:00Z",          // optional
+  "examStartDate": "2025-01-15T00:00:00Z", // optional
   "eligibilityComputeDate": "2025-01-10T00:00:00Z", // optional
-  "eligibilityThreshold": 75,                        // optional, default 75
-  "appealWindowDays": 5,                             // optional
-  "maxApprovedExcuses": 3                            // optional
+  "eligibilityThreshold": 75, // optional, default 75
+  "appealWindowDays": 5, // optional
+  "maxApprovedExcuses": 3 // optional
 }
 ```
+
 **Response `201`:** Semester object.
 
 ---
 
 ### `PATCH /admin/academic-sessions/:id/semesters/:semesterId/activate`
+
 **Roles:** `SUPER_ADMIN`  
 **Description:** Activates a semester within a session.
 
 ---
 
 ### `PATCH /admin/academic-sessions/:id/semesters/:semesterId/freeze`
+
 **Roles:** `SUPER_ADMIN`  
 **Description:** Freezes a semester — locks eligibility records from non-admin overrides.
 
@@ -361,6 +427,7 @@ POST /auth/logout         → invalidates refreshToken
 ## 3. Users (`/users`)
 
 ### `GET /users/me`
+
 **Auth:** Any authenticated role  
 **Description:** Returns the current user's full profile.  
 **Response `200`:** User + linked student/lecturer profile.
@@ -368,6 +435,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /users/me`
+
 **Auth:** Any authenticated role  
 **Description:** Update own profile (firstName, lastName, phone, avatar).
 
@@ -377,6 +445,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /users/me/access-log`
+
 **Auth:** Any authenticated role  
 **Description:** Returns own audit log entries (login events, password changes).  
 **Query Params:** `page`, `pageSize`  
@@ -385,10 +454,10 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /users/me/data-export`
+
 **Auth:** Any authenticated role  
 **Description:** NDPA-compliant export. Generates a JSON archive of all own data and emails a download link.  
 **Response `200`:** `{ "message": "Export queued" }`
-
 
 ---
 
@@ -397,28 +466,35 @@ POST /auth/logout         → invalidates refreshToken
 ### Faculties (`/faculties`)
 
 #### `GET /faculties`
+
 **Roles:** All authenticated  
 **Query Params:** `page`, `pageSize`, `search`  
 **Response `200`:** `{ data: Faculty[], total }`
 
 #### `POST /faculties`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 { "name": "Faculty of Computing", "code": "FCP", "deanId": "uuid" }
 ```
+
 **Response `201`:** Faculty object.
 
 #### `GET /faculties/:id`
+
 **Roles:** All authenticated  
 **Response `200`:** Faculty with departments.
 
 #### `PATCH /faculties/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Body:** Any subset of faculty fields.
 
 #### `DELETE /faculties/:id`
+
 **Roles:** `SUPER_ADMIN`  
 **Response `200`:** `{ "message": "Faculty deleted" }`
 
@@ -427,14 +503,17 @@ POST /auth/logout         → invalidates refreshToken
 ### Departments (`/departments`)
 
 #### `GET /departments`
+
 **Roles:** All authenticated  
 **Query Params:** `facultyId` (uuid), `page`, `pageSize`, `search`  
 **Response `200`:** `{ data: Department[], total }`
 
 #### `POST /departments`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "name": "Computer Science",
@@ -445,12 +524,15 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 #### `GET /departments/:id`
+
 **Roles:** All authenticated
 
 #### `PATCH /departments/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 #### `DELETE /departments/:id`
+
 **Roles:** `SUPER_ADMIN`
 
 ---
@@ -458,13 +540,16 @@ POST /auth/logout         → invalidates refreshToken
 ### Programmes (`/programmes`)
 
 #### `GET /programmes`
+
 **Roles:** All authenticated  
 **Query Params:** `departmentId`, `page`, `pageSize`
 
 #### `POST /programmes`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "name": "B.Sc. Computer Science",
@@ -475,7 +560,9 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 #### `GET /programmes/:id`
+
 #### `PATCH /programmes/:id`
+
 #### `DELETE /programmes/:id`
 
 ---
@@ -483,14 +570,17 @@ POST /auth/logout         → invalidates refreshToken
 ### Courses (`/courses`)
 
 #### `GET /courses`
+
 **Roles:** All authenticated  
 **Query Params:** `departmentId`, `level`, `semesterId`, `page`, `pageSize`  
 **Response `200`:** `{ data: Course[], total }`
 
 #### `POST /courses`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`
 
 **Request Body:**
+
 ```json
 {
   "title": "Data Structures & Algorithms",
@@ -503,19 +593,24 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 #### `GET /courses/:id`
+
 **Roles:** All authenticated
 
 #### `PATCH /courses/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`
 
 #### `DELETE /courses/:id`
+
 **Roles:** `SUPER_ADMIN`
 
 #### `POST /courses/:id/sections`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`  
 **Description:** Create a course section (links course to a lecturer and semester).
 
 **Request Body:**
+
 ```json
 {
   "lecturerId": "uuid",
@@ -523,23 +618,67 @@ POST /auth/logout         → invalidates refreshToken
   "maxEnrollment": 80
 }
 ```
+
 **Response `201`:** CourseSection object.
+
+---
+
+#### `POST /courses/:id/sections/:sectionId/enroll`
+
+**Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`  
+**Description:** Batch-enroll students into a course section.
+
+**Request Body:**
+
+```json
+{ "studentIds": ["uuid", "uuid"] }
+```
+
+**Response `201`:** `{ enrolled: number, skipped: number }`
+
+---
+
+#### `PATCH /courses/:id/sections/:sectionId/lecturer`
+
+**Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`  
+**Description:** Assign or reassign a lecturer to a course section.
+
+**Request Body:**
+
+```json
+{ "lecturerId": "uuid" }
+```
+
+**Response `200`:** Updated CourseSection.
+
+---
+
+#### `GET /courses/:id/students`
+
+**Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`  
+**Description:** List students enrolled in a course section with attendance summary.  
+**Query Params:** `sectionId` (uuid, required), `page`, `pageSize`  
+**Response `200`:** `{ data: StudentWithAttendanceSummary[], total }`
 
 ---
 
 ### Students (`/students`)
 
 #### `GET /students`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`  
 **Query Params:** `programmeId`, `level`, `search`, `page`, `pageSize`
 
 #### `GET /students/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`, `STUDENT` (own)
 
 #### `POST /students`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "userId": "uuid",
@@ -550,9 +689,11 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 #### `PATCH /students/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "programmeId": "uuid",
@@ -566,17 +707,22 @@ POST /auth/logout         → invalidates refreshToken
 ### Lecturers (`/lecturers`)
 
 #### `GET /lecturers`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`  
 **Query Params:** `departmentId`, `search`, `page`, `pageSize`
 
 #### `GET /lecturers/:id`
-**Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`  
+
+**Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`
+
 > Note: `accountabilityScore` is hidden when requesting role is `LECTURER`.
 
 #### `POST /lecturers`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "userId": "uuid",
@@ -587,6 +733,7 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 #### `PATCH /lecturers/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 ---
@@ -594,13 +741,16 @@ POST /auth/logout         → invalidates refreshToken
 ### Venues (`/venues`)
 
 #### `GET /venues`
+
 **Roles:** All authenticated  
 **Query Params:** `capacity`, `page`, `pageSize`
 
 #### `POST /venues`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 **Request Body:**
+
 ```json
 {
   "name": "LT1",
@@ -613,15 +763,17 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 #### `GET /venues/:id`
-#### `PATCH /venues/:id`
-#### `DELETE /venues/:id`
 
+#### `PATCH /venues/:id`
+
+#### `DELETE /venues/:id`
 
 ---
 
 ## 5. Timetable (`/timetable`)
 
 ### `GET /timetable/student/:studentId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `LECTURER`, `STUDENT` (own)  
 **Params:** `studentId` (UUID)  
 **Query Params:** `semesterId` (UUID, optional)  
@@ -630,6 +782,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /timetable/lecturer/:lecturerId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `LECTURER` (own)  
 **Params:** `lecturerId` (UUID)  
 **Query Params:** `semesterId` (UUID, optional)  
@@ -638,6 +791,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /timetable`
+
 **Roles:** All authenticated  
 **Query Params:**
 | Param | Type | Description |
@@ -654,16 +808,19 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /timetable/:id`
+
 **Roles:** All authenticated  
 **Params:** `id` (UUID)
 
 ---
 
 ### `POST /timetable`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`  
 **Description:** Creates an entry with smart conflict detection (venue + lecturer clash).
 
 **Request Body:**
+
 ```json
 {
   "courseSectionId": "uuid",
@@ -674,11 +831,13 @@ POST /auth/logout         → invalidates refreshToken
   "endTime": "11:00"
 }
 ```
+
 **Response `201`:** TimetableEntry. **`409`** venue or lecturer conflict.
 
 ---
 
 ### `PATCH /timetable/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`  
 **Body:** Any subset of timetable fields. Conflict detection re-runs.  
 **Response `200`:** Updated entry. **`409`** conflict.
@@ -686,44 +845,16 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `DELETE /timetable/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`  
 **Response `200`:** `{ "message": "Entry deleted" }`
 
 ---
 
-## 6. Enrollments (`/enrollments`)
-
-### `GET /enrollments/my`
-**Roles:** `STUDENT`  
-**Description:** Lists all course section enrollments for the logged-in student.  
-**Query Params:** `semesterId` (UUID, optional)  
-**Response `200`:** `CourseEnrollment[]`
-
----
-
-### `POST /enrollments`
-**Roles:** `STUDENT`  
-**Description:** Enroll in a course section.
-
-**Request Body:**
-```json
-{ "courseSectionId": "uuid" }
-```
-**Response `201`:** CourseEnrollment. **`409`** already enrolled.
-
----
-
-### `DELETE /enrollments/:id`
-**Roles:** `STUDENT`, `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
-**Params:** `id` (UUID)  
-**Description:** Drop an enrollment. Students can only drop their own.  
-**Response `200`:** `{ "message": "Enrollment dropped" }`
-
----
-
-## 7. Sessions (`/sessions`)
+## 6. Sessions (`/sessions`)
 
 ### `GET /sessions`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`  
 **Query Params:** `courseSectionId`, `semesterId`, `status`, `page`, `pageSize`  
 **Response `200`:** `{ data: CourseSession[], total }`
@@ -731,10 +862,12 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /sessions`
+
 **Roles:** `LECTURER`, `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Description:** Open a new class session and generate check-in tokens.
 
 **Request Body:**
+
 ```json
 {
   "courseSectionId": "uuid",
@@ -743,11 +876,13 @@ POST /auth/logout         → invalidates refreshToken
   "scheduledEnd": "2024-11-04T11:00:00Z"
 }
 ```
+
 **Response `201`:** `{ session, qrCode, attendanceCode }`
 
 ---
 
 ### `GET /sessions/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`, `STUDENT`  
 **Params:** `id` (UUID)  
 **Response `200`:** Session with attendance summary.
@@ -755,6 +890,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /sessions/:id/open`
+
 **Roles:** `LECTURER`, `SUPER_ADMIN`  
 **Description:** Re-opens a closed session.  
 **Response `200`:** Updated session.
@@ -762,28 +898,68 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /sessions/:id/close`
+
 **Roles:** `LECTURER`, `SUPER_ADMIN`  
-**Description:** Closes a session — no further check-ins accepted.  
+**Description:** Closes a session — no further check-ins accepted. Marks all non-present students as `ABSENT`.  
 **Response `200`:** Updated session.
 
 ---
 
+### `PATCH /sessions/:id/lock`
+
+**Roles:** `SUPER_ADMIN`  
+**Description:** Locks a closed session (`CLOSED → LOCKED`). Records become immutable without `SUPER_ADMIN` approval.  
+**Response `200`:** Updated session.
+
+---
+
+### `GET /sessions/:id/live`
+
+**Roles:** `LECTURER`, `HOD`, `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
+**Params:** `id` (UUID)  
+**Description:** Returns a live check-in snapshot for an active session (present count, absent count, pending).  
+**Response `200`:** `{ present: number, absent: number, pending: number, records: AttendanceRecord[] }`
+
+---
+
+### `POST /sessions/:id/qr`
+
+**Roles:** `LECTURER`, `SUPER_ADMIN`  
+**Params:** `id` (UUID)  
+**Description:** Generates (or regenerates) a signed QR token for student check-in. Previous token is immediately invalidated in Redis.  
+**Response `200`:** `{ qrToken: string, qrCodeUri: string, expiresAt: string }`
+
+---
+
+### `POST /sessions/:id/code`
+
+**Roles:** `LECTURER`, `SUPER_ADMIN`  
+**Params:** `id` (UUID)  
+**Description:** Generates (or regenerates) a 6–8 character alphanumeric attendance code. Previous code is immediately invalidated.  
+**Response `200`:** `{ code: string, expiresAt: string }`
+
+---
+
 ### `PATCH /sessions/:id/attendance/:studentId/override`
+
 **Roles:** `LECTURER`, `HOD`, `SUPER_ADMIN`  
 **Description:** Manually marks a student present/absent with justification.
 
 **Request Body:**
+
 ```json
 {
   "status": "PRESENT",
   "justification": "Student was present but device failed"
 }
 ```
+
 **Response `200`:** Override record.
 
 ---
 
 ### `GET /sessions/:id/overrides`
+
 **Roles:** `LECTURER`, `HOD`, `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Description:** Lists all manual overrides for a session.  
 **Response `200`:** `ManualOverride[]`
@@ -791,6 +967,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /overrides/:id/approve`
+
 **Roles:** `HOD`, `SUPER_ADMIN`  
 **Params:** `id` (UUID) — override ID  
 **Response `200`:** Approved override.
@@ -798,16 +975,17 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /overrides/:id/reject`
+
 **Roles:** `HOD`, `SUPER_ADMIN`  
 **Body:** `{ "reason": "string" }`  
 **Response `200`:** Rejected override.
 
-
 ---
 
-## 8. Attendance (`/attendance`)
+## 7. Attendance (`/attendance`)
 
 ### `GET /attendance`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`, `STUDENT`  
 **Description:** Lists attendance records (scope-aware — students see only own records).
 
@@ -826,10 +1004,12 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /attendance/checkin/gps`
+
 **Roles:** `STUDENT` only  
 **Description:** GPS-based check-in. Validates device fingerprint and distance from venue.
 
 **Request Body:**
+
 ```json
 {
   "sessionId": "uuid",
@@ -838,16 +1018,19 @@ POST /auth/logout         → invalidates refreshToken
   "longitude": 4.5426
 }
 ```
+
 **Response `201`:** AttendanceRecord.  
 **Errors:** `403` outside radius, `409` already checked in, `422` session closed.
 
 ---
 
 ### `POST /attendance/checkin/qr`
+
 **Roles:** `STUDENT` only  
 **Description:** QR code check-in. Validates the session QR token.
 
 **Request Body:**
+
 ```json
 {
   "sessionId": "uuid",
@@ -855,15 +1038,18 @@ POST /auth/logout         → invalidates refreshToken
   "deviceFingerprint": "string"
 }
 ```
+
 **Response `201`:** AttendanceRecord.
 
 ---
 
 ### `POST /attendance/checkin/code`
+
 **Roles:** `STUDENT` only  
 **Description:** Alphanumeric attendance code check-in (shown on projector).
 
 **Request Body:**
+
 ```json
 {
   "sessionId": "uuid",
@@ -871,13 +1057,15 @@ POST /auth/logout         → invalidates refreshToken
   "deviceFingerprint": "string"
 }
 ```
+
 **Response `201`:** AttendanceRecord.
 
 ---
 
-## 9. Excuses (`/excuses`)
+## 8. Excuses (`/excuses`)
 
 ### `POST /excuses`
+
 **Roles:** `STUDENT` only  
 **Description:** Submit an excuse letter with optional document attachments.  
 **Content-Type:** `multipart/form-data`
@@ -895,6 +1083,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /excuses`
+
 **Roles:** `STUDENT`, `LECTURER`, `HOD`, `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Description:** Scope-aware — students see only own excuses.
 
@@ -909,45 +1098,54 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /excuses/:id`
+
 **Roles:** `STUDENT` (own), `LECTURER`, `HOD`, `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`
 
 ---
 
 ### `PATCH /excuses/:id/review`
+
 **Roles:** `LECTURER`, `HOD`, `SUPER_ADMIN`  
 **Description:** Lecturer approves or rejects an excuse.
 
 **Request Body:**
+
 ```json
 {
-  "decision": "APPROVED",  // or "REJECTED"
+  "decision": "APPROVED", // or "REJECTED"
   "comment": "Medical certificate verified"
 }
 ```
+
 **Response `200`:** Updated excuse.
 
 ---
 
 ### `PATCH /excuses/:id/appeal`
+
 **Roles:** `STUDENT` only  
 **Description:** Student appeals a rejected excuse.
 
 **Request Body:**
+
 ```json
 { "appealReason": "string (min 20 chars)" }
 ```
+
 **Response `200`:** Excuse with status `APPEAL_SUBMITTED`.
 
 ---
 
 ### `PATCH /excuses/:id/hod-review`
+
 **Roles:** `HOD`, `SUPER_ADMIN`  
 **Description:** HOD makes final decision on an appealed excuse.
 
 **Request Body:**
+
 ```json
 {
-  "decision": "HOD_APPROVED",  // or "HOD_REJECTED"
+  "decision": "HOD_APPROVED", // or "HOD_REJECTED"
   "comment": "string"
 }
 ```
@@ -955,6 +1153,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /excuses/:id/documents/:key`
+
 **Roles:** `STUDENT` (own), `LECTURER`, `HOD`, `SUPER_ADMIN`  
 **Params:** `id` (excuse UUID), `key` (S3 key)  
 **Description:** Returns a 15-minute pre-signed S3 URL for the document.  
@@ -962,9 +1161,10 @@ POST /auth/logout         → invalidates refreshToken
 
 ---
 
-## 10. Eligibility (`/eligibility`)
+## 9. Eligibility (`/eligibility`)
 
 ### `GET /eligibility/student/:studentId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `EXAM_OFFICER`, `STUDENT` (own)  
 **Params:** `studentId` (UUID)  
 **Query Params:** `semesterId`  
@@ -973,6 +1173,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /eligibility/course/:courseSectionId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `EXAM_OFFICER`, `LECTURER`  
 **Params:** `courseSectionId` (UUID)  
 **Response `200`:** All eligibility records for a course section.
@@ -980,6 +1181,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /eligibility/at-risk`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `EXAM_OFFICER`, `LECTURER`  
 **Description:** Lists students below the attendance threshold.  
 **Query Params:** `semesterId`, `courseSectionId`, `threshold` (number), `page`, `pageSize`  
@@ -988,18 +1190,22 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /eligibility/compute`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `EXAM_OFFICER`  
 **Description:** Triggers eligibility computation job for a semester.
 
 **Request Body:**
+
 ```json
 { "semesterId": "uuid" }
 ```
+
 **Response `202`:** `{ "message": "Computation queued" }`
 
 ---
 
 ### `POST /eligibility/freeze/:semesterId`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `semesterId` (UUID)  
 **Description:** Freezes all eligibility records for a semester. Prevents further automatic changes.  
@@ -1008,14 +1214,16 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /eligibility/:id/override`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `EXAM_OFFICER`, `HOD`, `DEAN`  
 **Params:** `id` (UUID)  
 **Description:** Manual override of computed eligibility status.
 
 **Request Body:**
+
 ```json
 {
-  "status": "ELIGIBLE",  // ELIGIBLE | BARRED | CONDITIONAL
+  "status": "ELIGIBLE", // ELIGIBLE | BARRED | CONDITIONAL
   "justification": "string"
 }
 ```
@@ -1023,11 +1231,13 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /eligibility/:id/appeal`
+
 **Roles:** `STUDENT`  
 **Params:** `id` (UUID)  
 **Description:** Student appeals a BARRED eligibility status.
 
 **Request Body:**
+
 ```json
 { "reason": "string (min 20 chars)" }
 ```
@@ -1035,25 +1245,27 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /eligibility/:id/appeal/decide`
+
 **Roles:** `SUPER_ADMIN`, `EXAM_OFFICER`, `ACADEMIC_AFFAIRS`  
 **Description:** Final decision on a student's eligibility appeal.
 
 **Request Body:**
+
 ```json
 {
-  "decision": "APPROVED",  // or "REJECTED"
+  "decision": "APPROVED", // or "REJECTED"
   "comment": "string"
 }
 ```
 
-
 ---
 
-## 11. Anomalies (`/anomalies`)
+## 10. Anomalies (`/anomalies`)
 
 > Anomaly flags are auto-generated by the background detection worker (GPS spoofing, impossible travel, shared device, etc.)
 
 ### `GET /anomalies`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`
 
 **Query Params:**
@@ -1071,28 +1283,33 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /anomalies/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`  
 **Response `200`:** AnomalyFlag with full details.
 
 ---
 
 ### `PATCH /anomalies/:id/review`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`
 
 **Request Body:**
+
 ```json
 {
-  "action": "CONFIRMED_PRESENT",  // CONFIRMED_PRESENT | CONFIRMED_ABSENT | ESCALATED
+  "action": "CONFIRMED_PRESENT", // CONFIRMED_PRESENT | CONFIRMED_ABSENT | ESCALATED
   "note": "string (min 5 chars)"
 }
 ```
+
 **Response `200`:** Reviewed flag. **`409`** already reviewed.
 
 ---
 
-## 12. Notifications (`/notifications`)
+## 11. Notifications (`/notifications`)
 
 ### `GET /notifications`
+
 **Roles:** All authenticated  
 **Description:** Lists own notifications.
 
@@ -1108,6 +1325,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `PATCH /notifications/:id/read`
+
 **Roles:** All authenticated  
 **Params:** `id` (UUID)  
 **Description:** Marks a notification as read.  
@@ -1116,25 +1334,30 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /notifications/fcm-token`
+
 **Roles:** All authenticated  
 **Description:** Registers a Firebase Cloud Messaging token for push notifications (mobile).
 
 **Request Body:**
+
 ```json
 {
   "token": "firebase-fcm-token-string",
-  "platform": "ios"  // or "android"
+  "platform": "ios" // or "android"
 }
 ```
+
 **Response `200`:** `{ "message": "Token registered" }`
 
 ---
 
 ### `POST /notifications/warn-student`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `LECTURER`, `EXAM_OFFICER`  
 **Description:** Sends a manual attendance warning to a student via all channels.
 
 **Request Body:**
+
 ```json
 {
   "studentId": "uuid",
@@ -1142,17 +1365,20 @@ POST /auth/logout         → invalidates refreshToken
   "message": "string (optional custom message)"
 }
 ```
+
 **Response `200`:** `{ "message": "Warning sent" }`
 
 ---
 
-## 13. Dashboard & Analytics
+## 12. Dashboard & Analytics
 
 ### `GET /dashboard`
+
 **Roles:** All authenticated  
 **Description:** Returns role-scoped dashboard data. Cached 60 seconds in Redis.
 
 **Response `200`** (varies by role):
+
 ```json
 {
   // STUDENT: enrollments, attendance %, at-risk courses, next session
@@ -1165,11 +1391,13 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /analytics/course/:courseSectionId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`  
 **Params:** `courseSectionId` (UUID)  
 **Query Params:** `semesterId` (UUID, optional)
 
 **Response `200`:**
+
 ```json
 {
   "courseSectionId": "uuid",
@@ -1184,11 +1412,13 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /analytics/student/:studentId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `LECTURER`, `STUDENT`  
 **Params:** `studentId` (UUID)  
 **Query Params:** `semesterId` (UUID, optional)
 
 **Response `200`:**
+
 ```json
 {
   "studentId": "uuid",
@@ -1203,10 +1433,12 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /analytics/heatmap/live`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `VICE_CHANCELLOR`, `DEAN`  
 **Description:** Live venue occupancy heatmap across campus. Cached 30 seconds.
 
 **Response `200`:**
+
 ```json
 {
   "timestamp": "2024-11-04T10:00:00Z",
@@ -1225,9 +1457,10 @@ POST /auth/logout         → invalidates refreshToken
 
 ---
 
-## 14. Devices (`/devices`)
+## 13. Devices (`/devices`)
 
-### `GET /devices`  _(aliased as `/devices/my`)_
+### `GET /devices` _(aliased as `/devices/my`)_
+
 **Roles:** `STUDENT`  
 **Description:** Lists own registered device bindings.  
 **Response `200`:** `DeviceBinding[]`
@@ -1235,24 +1468,28 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /devices`
+
 **Roles:** `STUDENT`  
 **Description:** Register a new device for check-in.
 
 **Request Body:**
+
 ```json
 {
   "deviceFingerprint": "string (min 10 chars)",
-  "platform": "android",  // ios | android
+  "platform": "android", // ios | android
   "deviceModel": "Samsung Galaxy S24",
   "osVersion": "Android 14",
   "isPrimary": true
 }
 ```
+
 **Response `201`:** DeviceBinding. **`403`** if device limit exceeded.
 
 ---
 
 ### `DELETE /devices/:id`
+
 **Roles:** `STUDENT` (own), `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Body:** `{ "reason": "string (min 5 chars)" }`  
@@ -1261,6 +1498,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /admin/devices/:id/approve`
+
 **Roles:** `SUPER_ADMIN`  
 **Params:** `id` (UUID)  
 **Description:** Approves a pending device binding.  
@@ -1269,35 +1507,39 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /admin/users/:userId/devices`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Params:** `userId` (UUID)  
 **Response `200`:** `DeviceBinding[]` for that user.
 
-
 ---
 
-## 15. Reports (`/reports`)
+## 14. Reports (`/reports`)
 
 ### `POST /reports/generate`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`, `EXAM_OFFICER`  
 **Description:** Queues a background job to generate a PDF/CSV report.
 
 **Request Body:**
+
 ```json
 {
-  "type": "COURSE_ATTENDANCE",  // COURSE_ATTENDANCE | DEPARTMENT_SUMMARY | FACULTY_OVERVIEW | NUC_PACKAGE
+  "type": "COURSE_ATTENDANCE", // COURSE_ATTENDANCE | DEPARTMENT_SUMMARY | FACULTY_OVERVIEW | NUC_PACKAGE
   "semesterId": "uuid",
-  "courseSectionId": "uuid",   // required for COURSE_ATTENDANCE
-  "departmentId": "uuid",      // required for DEPARTMENT_SUMMARY
-  "facultyId": "uuid",         // required for FACULTY_OVERVIEW
-  "format": "PDF"              // PDF | CSV
+  "courseSectionId": "uuid", // required for COURSE_ATTENDANCE
+  "departmentId": "uuid", // required for DEPARTMENT_SUMMARY
+  "facultyId": "uuid", // required for FACULTY_OVERVIEW
+  "format": "PDF" // PDF | CSV
 }
 ```
+
 **Response `202`:** `{ "jobId": "uuid", "message": "Report queued" }`
 
 ---
 
 ### `GET /reports/templates`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Description:** Lists all saved report templates.  
 **Response `200`:** `ReportTemplate[]`
@@ -1305,10 +1547,12 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /reports/templates`
+
 **Roles:** `SUPER_ADMIN`  
 **Description:** Save a reusable report template.
 
 **Request Body:**
+
 ```json
 {
   "name": "Weekly Dept Summary",
@@ -1316,47 +1560,56 @@ POST /auth/logout         → invalidates refreshToken
   "config": { "threshold": 75, "includeExcuses": true }
 }
 ```
+
 **Response `201`:** ReportTemplate.
 
 ---
 
 ### `POST /reports/nuc-package`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `VICE_CHANCELLOR`  
 **Description:** Generates a complete NUC accreditation data package for an academic session.
 
 **Request Body:**
+
 ```json
 {
   "academicSessionId": "uuid",
   "includeAnalytics": true
 }
 ```
+
 **Response `202`:** `{ "jobId": "uuid" }`
 
 ---
 
 ### `POST /reports/certificates`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `EXAM_OFFICER`  
 **Description:** Generates individual attendance certificates for students.
 
 **Request Body:**
+
 ```json
 {
   "studentId": "uuid",
   "semesterId": "uuid"
 }
 ```
+
 **Response `202`:** `{ "jobId": "uuid" }`. Certificate uploaded to S3 on completion.
 
 ---
 
 ### `GET /reports/class-register/:courseSectionId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `EXAM_OFFICER`, `LECTURER`  
 **Params:** `courseSectionId` (UUID)  
 **Query Params:** `semesterId` (UUID, optional)  
 **Description:** Returns a pre-signed S3 URL for the class register PDF (generated on demand, idempotent).
 
 **Response `200`:**
+
 ```json
 { "url": "https://s3.example.com/class-register-CSC301-S1.pdf", "expiresIn": 900 }
 ```
@@ -1364,21 +1617,24 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /reports/report-card/:studentId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `EXAM_OFFICER`, `STUDENT` (own), `LECTURER`  
 **Params:** `studentId` (UUID)  
 **Query Params:** `semesterId` (UUID, optional)  
 **Description:** Returns a pre-signed S3 URL for the student's attendance report card PDF.
 
 **Response `200`:**
+
 ```json
 { "url": "https://s3.example.com/report-card-22-47CSC-00001.pdf", "expiresIn": 900 }
 ```
 
 ---
 
-## 16. Audit Logs (`/audit-logs`)
+## 15. Audit Logs (`/audit-logs`)
 
 ### `GET /audit-logs`
+
 **Roles:** `SUPER_ADMIN` only  
 **Description:** Append-only log of all significant system actions.
 
@@ -1399,14 +1655,16 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `GET /audit-logs/:id`
+
 **Roles:** `SUPER_ADMIN`  
 **Response `200`:** Full AuditLog entry.
 
 ---
 
-## 17. Support Tickets (`/support`)
+## 16. Support Tickets (`/support`)
 
 ### `GET /support`
+
 **Roles:** All authenticated  
 **Description:** Lists own tickets (students) or all tickets (admins).  
 **Query Params:** `status`, `page`, `pageSize`  
@@ -1415,35 +1673,41 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /support`
+
 **Roles:** All authenticated  
 **Description:** Creates a support ticket.
 
 **Request Body:**
+
 ```json
 {
   "subject": "Cannot check in — device error",
   "description": "string (min 10 chars)",
-  "category": "ATTENDANCE"  // ATTENDANCE | ACCOUNT | TECHNICAL | OTHER
+  "category": "ATTENDANCE" // ATTENDANCE | ACCOUNT | TECHNICAL | OTHER
 }
 ```
+
 **Response `201`:** SupportTicket.
 
 ---
 
 ### `GET /support/:id`
+
 **Roles:** All authenticated (own ticket or admin)  
 **Response `200`:** SupportTicket with thread.
 
 ---
 
 ### `PATCH /support/:id`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`  
 **Description:** Update ticket status or assignment.
 
 **Request Body:**
+
 ```json
 {
-  "status": "IN_PROGRESS",         // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  "status": "IN_PROGRESS", // OPEN | IN_PROGRESS | RESOLVED | CLOSED
   "assignedRole": "ACADEMIC_AFFAIRS",
   "assignedToId": "uuid",
   "resolution": "string"
@@ -1452,9 +1716,10 @@ POST /auth/logout         → invalidates refreshToken
 
 ---
 
-## 18. Welfare (`/welfare`)
+## 17. Welfare (`/welfare`)
 
 ### `GET /welfare`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `DEAN`, `HOD`  
 **Description:** Lists students flagged for welfare concerns (chronic absenteeism, sudden drops).  
 **Query Params:** `semesterId`, `departmentId`, `threshold`, `page`, `pageSize`  
@@ -1463,6 +1728,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `POST /welfare/check/:studentId`
+
 **Roles:** `SUPER_ADMIN`, `ACADEMIC_AFFAIRS`, `HOD`, `DEAN`  
 **Params:** `studentId` (UUID)  
 **Description:** Triggers a manual welfare check for a specific student.  
@@ -1470,19 +1736,22 @@ POST /auth/logout         → invalidates refreshToken
 
 ---
 
-## 19. Webhooks (`/webhooks`)
+## 18. Webhooks (`/webhooks`)
 
 > All webhook routes are `SUPER_ADMIN` only.
 
 ### `GET /webhooks`
+
 **Response `200`:** `WebhookSubscription[]`
 
 ---
 
 ### `POST /webhooks`
+
 **Description:** Subscribe an external URL to one or more system events.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://your-server.com/kwasu-webhook",
@@ -1492,6 +1761,7 @@ POST /auth/logout         → invalidates refreshToken
 ```
 
 **Available events:**
+
 - `attendance.checkin`
 - `attendance.override`
 - `eligibility.computed`
@@ -1509,6 +1779,7 @@ POST /auth/logout         → invalidates refreshToken
 ---
 
 ### `DELETE /webhooks/:id`
+
 **Params:** `id` (UUID)  
 **Description:** Soft-deactivates a webhook subscription.  
 **Response `200`:** `{ "message": "Webhook deleted" }`
@@ -1530,30 +1801,30 @@ All errors follow a consistent shape:
 
 **Common error codes:**
 
-| Code | HTTP | Description |
-|------|------|-------------|
-| `INVALID_CREDENTIALS` | 401 | Wrong password |
-| `ACCOUNT_LOCKED` | 423 | Too many failed attempts |
-| `TOTP_REQUIRED` | 403 | TOTP not verified |
-| `TOTP_SETUP_REQUIRED` | 403 | User has not enrolled TOTP |
-| `INSUFFICIENT_ROLE` | 403 | Role not allowed |
-| `NOT_FOUND` | 404 | Resource does not exist |
-| `CONFLICT` | 409 | Duplicate / already exists |
-| `VALIDATION_ERROR` | 422 | Schema validation failed |
-| `ELIGIBILITY_FROZEN` | 400 | Semester is frozen |
-| `SESSION_CLOSED` | 422 | Check-in on closed session |
-| `OUTSIDE_GEOFENCE` | 403 | GPS check-in outside venue radius |
+| Code                  | HTTP | Description                       |
+| --------------------- | ---- | --------------------------------- |
+| `INVALID_CREDENTIALS` | 401  | Wrong password                    |
+| `ACCOUNT_LOCKED`      | 423  | Too many failed attempts          |
+| `TOTP_REQUIRED`       | 403  | TOTP not verified                 |
+| `TOTP_SETUP_REQUIRED` | 403  | User has not enrolled TOTP        |
+| `INSUFFICIENT_ROLE`   | 403  | Role not allowed                  |
+| `NOT_FOUND`           | 404  | Resource does not exist           |
+| `CONFLICT`            | 409  | Duplicate / already exists        |
+| `VALIDATION_ERROR`    | 422  | Schema validation failed          |
+| `ELIGIBILITY_FROZEN`  | 400  | Semester is frozen                |
+| `SESSION_CLOSED`      | 422  | Check-in on closed session        |
+| `OUTSIDE_GEOFENCE`    | 403  | GPS check-in outside venue radius |
 
 ---
 
 ## Token Reference
 
-| Token | Lifetime | Usage |
-|-------|----------|-------|
-| Interim token | 5 min | After login, before TOTP |
-| Access token | 30 min | All authenticated endpoints |
-| Refresh token | 7 days | `POST /auth/refresh` only |
-| Reset token | 15 min | `POST /auth/reset-password` |
+| Token         | Lifetime | Usage                       |
+| ------------- | -------- | --------------------------- |
+| Interim token | 5 min    | After login, before TOTP    |
+| Access token  | 30 min   | All authenticated endpoints |
+| Refresh token | 7 days   | `POST /auth/refresh` only   |
+| Reset token   | 15 min   | `POST /auth/reset-password` |
 
 > Send tokens as: `Authorization: Bearer <token>`  
 > Refresh token also set as `HttpOnly` cookie on `/auth/verify-totp`.
