@@ -2,6 +2,16 @@
   "name": "@kwasu-ams/web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"No tests yet\" && exit 0",
+    "clean": "rm -rf .next"
+  },
   "dependencies": {
     "@kwasu-ams/types": "workspace:*",
     "@kwasu-ams/utils": "workspace:*",
