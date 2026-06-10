@@ -20,7 +20,6 @@ import {
   LoginSchema,
   ChangePasswordSchema,
   ForgotPasswordSchema,
-  RefreshTokenSchema,
   ResetPasswordSchema,
   VerifyTotpSchema,
   RecoverTotpSchema,
