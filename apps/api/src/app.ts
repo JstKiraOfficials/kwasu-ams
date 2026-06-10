@@ -19,6 +19,7 @@
 
 import Fastify from 'fastify';
 import { type FastifyInstance } from 'fastify';
+import fastifyCookie from '@fastify/cookie';
 import { prisma } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { env } from './config/env.js';
@@ -80,6 +81,7 @@ export async function createApp(): Promise<FastifyInstance> {
   });
 
   // ── Plugins ──────────────────────────────────────────────────────────────
+  await app.register(fastifyCookie);
   await app.register(helmetPlugin);
   await app.register(corsPlugin);
   await app.register(rateLimiterPlugin);

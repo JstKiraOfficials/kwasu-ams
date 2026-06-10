@@ -47,18 +47,32 @@ export async function loginHandler(request: FastifyRequest, reply: FastifyReply)
 /**
  * Handles `POST /auth/refresh`.
  *
- * Validates the refresh token in the request body, rotates the token pair via
- * {@link authService.refreshToken}, and returns the new tokens.
+ * Reads the refresh token from the request body or, if absent, from the
+ * `refreshToken` HttpOnly cookie set by the web client. Rotates the token
+ * pair via {@link authService.refreshToken} and returns the new tokens.
  *
- * @param request - Fastify request containing `{ refreshToken }` body.
+ * @param request - Fastify request. Refresh token may be in body or cookie.
  * @param reply   - Fastify reply used to send the HTTP response.
+ * @throws {AppError} 401 if no refresh token is found or the token is invalid.
  */
 export async function refreshTokenHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
-  const body = RefreshTokenSchema.parse(request.body);
-  const result = await authService.refreshToken(body.refreshToken);
+  // Accept token from body (mobile/Postman) or HttpOnly cookie (web)
+  const body = request.body as { refreshToken?: string } | null;
+  const tokenFromBody = body?.refreshToken;
+  const tokenFromCookie = (request.cookies as Record<string, string | undefined>)?.['refreshToken'];
+  const refreshToken = tokenFromBody ?? tokenFromCookie;
+
+  if (!refreshToken) {
+    void reply
+      .status(401)
+      .send({ statusCode: 401, error: 'UNAUTHORIZED', message: 'Refresh token missing.' });
+    return;
+  }
+
+  const result = await authService.refreshToken(refreshToken);
   void reply.status(200).send(result);
 }
 

@@ -117,9 +117,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           'refresh token. The old refresh token is immediately invalidated (single-use).',
         body: {
           type: 'object',
-          required: ['refreshToken'],
           properties: {
-            refreshToken: { type: 'string', description: 'Current refresh token' },
+            refreshToken: {
+              type: 'string',
+              description: 'Current refresh token (or sent via HttpOnly cookie)',
+            },
           },
         },
         response: {
