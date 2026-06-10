@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { err, ok, type Result } from './result.js';
+import { err, ok, type Result } from './result';
 
 export interface QrTokenPayload {
   sessionId: string;

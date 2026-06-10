@@ -47,17 +47,19 @@ export interface AuthContextValue {
    * Called when navigating away from the auth flow.
    */
   clearInterimToken: () => void;
+  /** `true` when a user is present in context. Convenience alias for `user !== null`. */
+  isAuthenticated: boolean;
   /**
-   * Stores the full token pair in memory and fetches the user profile.
+   * Stores the access token in memory and fetches the user profile.
    * Clears `interimToken` on success.
    *
    * Call this after a successful `POST /auth/verify-totp` response.
    *
    * @param accessToken  - JWT access token (30-minute lifetime).
-   * @param refreshToken - Refresh token (stored as HttpOnly cookie by the API).
+   * @param refreshToken - Optional refresh token (stored as HttpOnly cookie by the API).
    * @returns A promise that resolves once the user profile is loaded.
    */
-  login: (accessToken: string, refreshToken: string) => Promise<void>;
+  login: (accessToken: string, refreshToken?: string) => Promise<void>;
   /**
    * Clears the in-memory token, calls `POST /auth/logout`, and resets user state.
    *
@@ -146,10 +148,10 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
 
   // ── login ──────────────────────────────────────────────────────────────
   const login = useCallback(
-    async (accessToken: string, refreshToken: string): Promise<void> => {
+    async (accessToken: string, refreshToken?: string): Promise<void> => {
       setIsLoading(true);
       try {
-        setTokens(accessToken, refreshToken);
+        setTokens(accessToken, refreshToken ?? '');
         await fetchMe();
         // Clear interim token now that full authentication is complete
         setInterimTokenState(null);
@@ -178,6 +180,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       value={{
         user,
         isLoading,
+        isAuthenticated: user !== null,
         interimToken,
         setInterimToken,
         clearInterimToken,

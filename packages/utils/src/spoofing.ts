@@ -1,4 +1,4 @@
-import { isWithinNigeriaBounds, validateGeofence } from './geofence.js';
+import { isWithinNigeriaBounds, validateGeofence } from './geofence';
 
 export type SpoofingFlag =
   | 'PRECISION_SPOOFING'

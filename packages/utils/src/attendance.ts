@@ -1,4 +1,4 @@
-import { ATTENDANCE_THRESHOLD_SAFE, ATTENDANCE_THRESHOLD_NUC } from './constants/attendance.js';
+import { ATTENDANCE_THRESHOLD_SAFE, ATTENDANCE_THRESHOLD_NUC } from './constants/attendance';
 
 /**
  * Computes attendance percentage rounded to 2 decimal places.

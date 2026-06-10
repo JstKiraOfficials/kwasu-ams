@@ -62,7 +62,7 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps): React.JSX.Element {
   return (
     <html lang="en" className={inter.className}>
-      <body>
+      <body suppressHydrationWarning>
         <QueryProvider>
           <AuthProvider>
             <ThemeProvider>{children}</ThemeProvider>

@@ -1,0 +1,223 @@
+/**
+ * LoginForm.module.css
+ * Styles for the LoginForm component.
+ * All values use CSS custom properties — no hardcoded colours or sizes.
+ */
+
+/* ── Form container ──────────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.heading {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  text-align: center;
+  margin-bottom: var(--spacing-1);
+}
+
+/* ── Field group ─────────────────────────────────────────────── */
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* ── Input wrapper (for password show/hide) ──────────────────── */
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: var(--spacing-3);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.input:focus {
+  border-color: var(--color-kwasu-green);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.inputError {
+  border-color: var(--color-attendance-danger);
+}
+
+.inputError:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+.inputWithToggle {
+  padding-right: 2.75rem;
+}
+
+.toggleButton {
+  position: absolute;
+  right: var(--spacing-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-1);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-base);
+}
+
+.toggleButton:hover {
+  color: var(--color-text-primary);
+}
+
+/* ── Field error message ─────────────────────────────────────── */
+.fieldError {
+  font-size: var(--font-size-sm);
+  color: var(--color-attendance-danger);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+/* ── Submit button ───────────────────────────────────────────── */
+.submitButton {
+  width: 100%;
+  padding: var(--spacing-3);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-inverse);
+  background-color: var(--color-kwasu-green);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity var(--transition-base), background-color var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  min-height: 44px;
+}
+
+.submitButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────── */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--color-text-inverse);
+  border-radius: var(--radius-full);
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Form-level error ────────────────────────────────────────── */
+.formError {
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-attendance-danger);
+  background-color: var(--color-attendance-danger-bg);
+  border: 1px solid var(--color-attendance-danger);
+  border-radius: var(--radius-md);
+}
+
+/* ── Forgot password link ────────────────────────────────────── */
+.forgotLink {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-kwasu-green);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+}
+
+.forgotLink:hover {
+  opacity: 0.8;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Mobile overrides — form sits directly on the background image.
+   Text must be light; inputs get a frosted semi-transparent fill.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .heading {
+    color: var(--color-text-inverse);
+  }
+
+  .label {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .input {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: var(--color-text-inverse);
+  }
+
+  .input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .input:focus {
+    background-color: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+  }
+
+  .inputError {
+    border-color: #fca5a5;
+  }
+
+  .toggleButton {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .toggleButton:hover {
+    color: var(--color-text-inverse);
+  }
+
+  .fieldError {
+    color: #fca5a5;
+  }
+
+  .formError {
+    background-color: rgba(220, 38, 38, 0.25);
+    border-color: #fca5a5;
+    color: #fca5a5;
+  }
+
+  .forgotLink {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}

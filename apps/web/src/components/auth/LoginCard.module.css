@@ -45,34 +45,6 @@
   margin-top: var(--space-1);
 }
 
-/* ── Student / Staff toggle ── */
-.toggle {
-  display: flex;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-1);
-  gap: var(--space-1);
-}
-
-.toggleBtn {
-  flex: 1;
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  transition: background var(--ease-fast), color var(--ease-fast), box-shadow var(--ease-fast);
-  min-height: 36px;
-}
-
-.toggleBtnActive {
-  background: var(--color-surface);
-  color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
-  font-weight: var(--fw-semibold);
-}
-
 /* ── Form ── */
 .form {
   display: flex;
@@ -98,4 +70,33 @@
   color: var(--color-danger);
   text-align: center;
   line-height: 1.4;
+}
+
+/* ── Mobile: text over the green-tinted campus photo ── */
+@media (max-width: 767px) {
+  .title {
+    color: var(--color-white);
+  }
+
+  .subtitle {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .forgotLink {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .forgotLink:hover {
+    color: var(--color-white);
+  }
+
+  /*
+   * Override the --color-text token scoped to the form so Input labels
+   * (which use var(--color-text)) render white over the green overlay.
+   * Input fields themselves have their own white background so they stay readable.
+   */
+  .form {
+    --color-text: #ffffff;
+    --color-text-secondary: rgba(255, 255, 255, 0.75);
+  }
 }

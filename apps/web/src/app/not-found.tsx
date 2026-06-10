@@ -1,36 +1,44 @@
 /**
  * @file not-found.tsx
- * @module app/not-found
+ * @module app
  *
- * Next.js 404 Not Found page. Rendered automatically by the App Router
- * whenever a route segment cannot be matched. Provides a user-friendly
- * message and a link back to the home page.
+ * Next.js App Router 404 Not Found page.
+ * Rendered automatically by Next.js when `notFound()` is called or a route
+ * does not match any segment. Provides a user-friendly message and a link
+ * back to the dashboard.
  */
 
+import type { Metadata } from 'next';
+import type { ReactElement } from 'react';
 import Link from 'next/link';
 import styles from './not-found.module.css';
 
 /**
- * Renders the 404 Not Found page.
- *
- * Displayed by Next.js when no matching route is found. Shows a large
- * error code, a short explanation, and a navigation link back to `/`.
- *
- * @returns The 404 page JSX element.
+ * Next.js metadata for the 404 page.
  */
-export default function NotFound(): React.JSX.Element {
+export const metadata: Metadata = {
+  title: 'Page Not Found — KWASU AMS',
+};
+
+/**
+ * 404 Not Found page component.
+ *
+ * Displayed when a user navigates to a route that does not exist.
+ * Offers a link back to `/dashboard` so the user can recover without
+ * using the browser back button.
+ *
+ * @returns The rendered 404 page element.
+ */
+export default function NotFound(): ReactElement {
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <span className={styles.code}>404</span>
-        <h1 className={styles.title}>Page not found</h1>
-        <p className={styles.description}>
-          The page you&apos;re looking for doesn&apos;t exist or has been moved.
-        </p>
-        <Link href="/" className={styles.link}>
-          Go back home
-        </Link>
-      </div>
+    <div
+      className={`flex flex-col items-center justify-center min-h-screen gap-4 ${styles.container}`}
+    >
+      <span className={styles.code}>404</span>
+      <p className={styles.message}>The page you&apos;re looking for doesn&apos;t exist.</p>
+      <Link href="/dashboard" className={styles.link}>
+        Return to Dashboard
+      </Link>
     </div>
   );
 }

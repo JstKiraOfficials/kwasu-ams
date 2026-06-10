@@ -2,20 +2,37 @@
  * @file page.tsx
  * @module app/(auth)/login
  *
- * Login page. Renders the `LoginCard` component inside the `(auth)` split-screen
- * layout. No data fetching occurs here — all auth logic lives in `LoginCard`.
+ * Login page for the KWASU AMS web application.
+ *
+ * Renders the {@link LoginForm} component inside the `(auth)` centred card
+ * layout. The form handles Student/Staff tab selection, identifier and
+ * password input, client-side validation, and post-login redirection.
  */
 
-import { LoginCard } from '../../../components/auth/LoginCard';
+import type { Metadata } from 'next';
+import type { ReactElement } from 'react';
+import { LoginForm } from '@/components/auth/LoginForm';
+
+// ── Metadata ──────────────────────────────────────────────────────────────────
+
+/**
+ * Next.js page metadata for the login route.
+ */
+export const metadata: Metadata = {
+  title: 'Sign In — KWASU AMS',
+  description: 'Sign in to the Kwara State University Attendance Management System.',
+};
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 /**
  * Login page component.
  *
- * Entry point for the authentication flow. Renders the Student/Staff toggle,
- * identifier input, password input, and sign-in button via `LoginCard`.
+ * A thin Server Component wrapper that renders the client-side
+ * {@link LoginForm} inside the `(auth)` layout card.
  *
- * @returns The login page JSX element.
+ * @returns The rendered login page element.
  */
-export default function LoginPage(): React.JSX.Element {
-  return <LoginCard />;
+export default function LoginPage(): ReactElement {
+  return <LoginForm />;
 }

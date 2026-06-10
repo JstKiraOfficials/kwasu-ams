@@ -6,7 +6,7 @@ import {
   isWithinWindow,
   formatNigeriaTime,
   getBusinessDaysFromNow,
-} from './date.js';
+} from './date';
 
 const BASE = new Date('2024-10-01T10:00:00.000Z');
 

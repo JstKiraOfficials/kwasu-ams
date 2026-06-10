@@ -3,8 +3,8 @@ import {
   ALPHANUMERIC_CHARSET,
   ALPHANUMERIC_CODE_MAX_LENGTH,
   ALPHANUMERIC_CODE_MIN_LENGTH,
-} from './constants/alphanumeric-charset.js';
-import { err, ok, type Result } from './result.js';
+} from './constants/alphanumeric-charset';
+import { err, ok, type Result } from './result';
 
 /**
  * Generates a cryptographically random alphanumeric code of the specified length.

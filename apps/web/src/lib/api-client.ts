@@ -16,6 +16,16 @@ import { getAccessToken, setTokens, clearTokens } from './auth';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001';
 
+/**
+ * Stores the access token in memory. Alias for `setTokens(token, '')` provided
+ * for compatibility with auth flow components that call `setAccessToken` directly.
+ *
+ * @param token - JWT access token to store in memory.
+ */
+export function setAccessToken(token: string): void {
+  setTokens(token, '');
+}
+
 // ── Error type ─────────────────────────────────────────────────────────────
 
 /**

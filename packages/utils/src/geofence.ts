@@ -1,4 +1,4 @@
-import { EARTH_RADIUS_METRES, NIGERIA_BOUNDS } from './constants/geofence.js';
+import { EARTH_RADIUS_METRES, NIGERIA_BOUNDS } from './constants/geofence';
 
 export interface GeofenceInput {
   studentLat: number;

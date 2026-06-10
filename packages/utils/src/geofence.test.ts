@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateGeofence, isWithinNigeriaBounds } from './geofence.js';
+import { validateGeofence, isWithinNigeriaBounds } from './geofence';
 
 // KWASU Malete campus centre
 const VENUE_LAT = 8.552;

@@ -1,53 +1,154 @@
+'use client';
+
 /**
  * @file layout.tsx
- * @module app/(auth)/layout
+ * @module app/(auth)
  *
- * Layout for the authentication route group `(auth)`.
+ * Auth route group layout — split-panel design.
  *
- * Renders a split-screen design for all auth pages (login, TOTP verify,
- * forgot password, reset password, setup TOTP):
- * - **Left panel** (`imagePanel`): full-height background photo with a
- *   KWASU green overlay and brand tagline. Hidden on mobile viewports.
- * - **Right panel** (`formPanel`): fixed-width white/dark surface that
- *   centres the auth form. Full-width on mobile.
+ * Desktop: left half is a full-height image panel with KWASU branding text
+ * overlaid on a dark gradient. Right half is a scrollable form panel.
  *
- * No sidebar or top navigation is rendered for auth pages.
+ * Mobile: the background image fills the full viewport behind a dark scrim,
+ * and the form card is centred on top of it.
+ *
+ * Uses a client-side mount gate (`mounted` state) to prevent server/client
+ * hydration mismatches that cause React's `removeChild` crash.
  */
 
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/providers/auth-provider';
+import { AuthFlowProvider } from '@/providers/auth-flow-provider';
 import styles from './layout.module.css';
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 /**
- * Props accepted by `AuthLayout`.
+ * Props for the {@link AuthLayout} component.
  */
 interface AuthLayoutProps {
-  /** The auth page content (login form, TOTP form, etc.). */
-  children: React.ReactNode;
+  /** Auth page content rendered inside the form panel. */
+  children: ReactNode;
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 /**
- * Authentication group layout.
+ * Split-panel layout for all unauthenticated pages in the `(auth)` route group.
  *
- * Wraps all pages inside `(auth)/` with the split-screen shell. The left
- * image panel is hidden below 768 px so the form is full-width on mobile.
+ * Behaviour:
+ * - Outer shell always renders identically on server and client to keep the
+ *   DOM stable across hydration.
+ * - Inner content is gated on `mounted` state (set after first client paint)
+ *   to prevent hydration mismatches.
+ * - Once mounted: authenticated users are redirected to `/dashboard` via
+ *   `router.replace` (no back-button entry).
  *
- * @param props - `AuthLayoutProps` containing the page `children`.
- * @returns The split-screen auth shell JSX element.
+ * Layout:
+ * - Desktop (≥768px): left image panel + right form panel side by side.
+ * - Mobile (<768px): background image + scrim fill the viewport, form card
+ *   is centred on top.
+ *
+ * @param props - {@link AuthLayoutProps}
+ * @returns The auth shell element — always an element, never `null`.
  */
-export default function AuthLayout({ children }: AuthLayoutProps): React.JSX.Element {
+export default function AuthLayout({ children }: AuthLayoutProps): ReactElement {
+  const { user, isLoading } = useAuth();
+  const isAuthenticated = user !== null;
+  const router = useRouter();
+
+  const [mounted, setMounted] = useState(false);
+  /** Prevents the redirect from firing more than once per mount. */
+  const redirected = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isLoading && isAuthenticated && !redirected.current) {
+      redirected.current = true;
+      router.replace('/dashboard');
+    }
+  }, [mounted, isLoading, isAuthenticated, router]);
+
   return (
-    <div className={styles.authShell}>
-      {/* Left: decorative image panel — hidden on mobile */}
-      <div className={styles.imagePanel} aria-hidden="true">
-        <div className={styles.imageOverlay}>
-          <p className={styles.imageTagline}>Smart Attendance for a Smarter Campus</p>
-          <p className={styles.imageSubtext}>
-            Kwara State University, Malete — Attendance Management System
-          </p>
+    <AuthFlowProvider>
+      <div className={styles.shell}>
+        {/* ── Mobile: full-viewport background image ── */}
+        <div className={styles.mobileBg} aria-hidden="true">
+          <Image src="/background.jpg" alt="" fill className={styles.mobileBgImage} sizes="100vw" />
+        </div>
+        <div className={styles.mobileBgScrim} aria-hidden="true" />
+
+        {/* ── Desktop: left image panel ── */}
+        <div className={styles.imagePanelWrapper} aria-hidden="true">
+          <Image
+            src="/background.jpg"
+            alt=""
+            fill
+            className={styles.backgroundImage}
+            priority
+            sizes="50vw"
+          />
+          <div className={styles.imageOverlay}>
+            {/* Logo top-left */}
+            <div className={styles.overlayLogo}>
+              <Image
+                src="/kwasuLogo.png"
+                alt="KWASU logo"
+                width={48}
+                height={48}
+                className={styles.overlayLogoImage}
+              />
+              <span className={styles.overlayLogoText}>KWASU AMS</span>
+            </div>
+
+            {/* Bottom branding text */}
+            <h1 className={styles.overlayHeading}>
+              Attendance,
+              <br />
+              Simplified.
+            </h1>
+            <p className={styles.overlaySubtext}>
+              Kwara State University&apos;s mobile-first attendance management system — real-time,
+              hardware-free, and built for every stakeholder.
+            </p>
+            <p className={styles.overlayFooter}>
+              Kwara State University &mdash; Malete, Kwara State, Nigeria
+            </p>
+          </div>
+        </div>
+
+        {/* ── Right: form panel ── */}
+        <div className={styles.formPanel}>
+          {mounted && (!isAuthenticated || isLoading) && (
+            <>
+              {/* Mobile logo — shown above form on small screens */}
+              <div className={styles.mobileLogo}>
+                <Image
+                  src="/kwasuLogo.png"
+                  alt="KWASU logo"
+                  width={40}
+                  height={40}
+                  className={styles.mobileLogoImage}
+                />
+                <span className={styles.mobileLogoText}>KWASU AMS</span>
+              </div>
+
+              {/* Form content */}
+              <div className={styles.formContent}>{children}</div>
+
+              {/* Mobile footer */}
+              <p className={styles.mobileFooter}>
+                Kwara State University &mdash; Malete, Kwara State, Nigeria
+              </p>
+            </>
+          )}
         </div>
       </div>
-
-      {/* Right: form panel */}
-      <main className={styles.formPanel}>{children}</main>
-    </div>
+    </AuthFlowProvider>
   );
 }

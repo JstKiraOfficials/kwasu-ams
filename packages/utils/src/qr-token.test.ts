@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateQrToken, verifyQrToken, QR_TOKEN_EXPIRY_SECONDS } from './qr-token.js';
-import { isOk, isErr } from './result.js';
+import { generateQrToken, verifyQrToken, QR_TOKEN_EXPIRY_SECONDS } from './qr-token';
+import { isOk, isErr } from './result';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
 const NOW_SECONDS = Math.floor(Date.now() / 1000);

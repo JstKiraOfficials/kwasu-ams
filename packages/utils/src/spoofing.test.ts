@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkSpoofing } from './spoofing.js';
+import { checkSpoofing } from './spoofing';
 
 const NOW = new Date('2024-10-01T10:00:00.000Z');
 const VALID_LAT = 8.552;

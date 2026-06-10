@@ -1,57 +1,201 @@
-.authShell {
+/**
+ * layout.module.css
+ * Styles for the (auth) route group split-panel layout.
+ *
+ * Desktop (≥768px): left image panel | right white form panel — no card.
+ * Mobile (<768px): image fills full viewport as background behind a dark
+ * scrim; form content sits directly on top — transparent, no card.
+ *
+ * All values use CSS custom properties — no hardcoded colours or sizes.
+ */
+
+/* ── Root shell ──────────────────────────────────────────────── */
+.shell {
   display: flex;
   min-height: 100vh;
+  position: relative;
 }
 
-/* ── Left: decorative image panel ── */
-.imagePanel {
-  flex: 1;
-  background: url('/background.jpg') center / cover no-repeat;
+/* ── Mobile background layer ─────────────────────────────────── */
+/* Visible only on mobile; hidden on desktop */
+.mobileBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+}
+
+.mobileBgImage {
+  object-fit: cover;
+  object-position: center;
+}
+
+.mobileBgScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: rgba(20, 20, 36, 0.72);
+  display: block;
+}
+
+/* ── Left: image panel (desktop only) ───────────────────────── */
+.imagePanelWrapper {
   position: relative;
+  flex: 1 1 0;
+  min-height: 100vh;
+  overflow: hidden;
+  display: none; /* hidden on mobile */
+}
+
+.backgroundImage {
+  object-fit: cover;
+  object-position: center;
 }
 
 .imageOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(26, 107, 60, 0.55); /* KWASU green tint — intentional hex, not a token */
+  background: linear-gradient(
+    155deg,
+    rgba(26, 107, 60, 0.84) 0%,
+    rgba(26, 26, 46, 0.78) 100%
+  );
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: var(--space-12);
+  padding: var(--spacing-12);
+  gap: var(--spacing-4);
 }
 
-.imageTagline {
-  color: var(--color-white);
-  font-size: var(--text-2xl);
-  font-weight: var(--fw-bold);
-  line-height: 1.3;
-}
-
-.imageSubtext {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: var(--text-base);
-  margin-top: var(--space-2);
-}
-
-/* ── Right: form panel ── */
-.formPanel {
-  width: 480px;
-  flex-shrink: 0;
+.overlayLogo {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--color-bg);
-  padding: var(--space-12) var(--space-10);
+  gap: var(--spacing-3);
+  position: absolute;
+  top: var(--spacing-8);
+  left: var(--spacing-8);
 }
 
-/* ── Mobile: image panel hidden, form panel full-width ── */
-@media (max-width: 767px) {
-  .imagePanel {
+.overlayLogoImage {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.overlayLogoText {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-inverse);
+  letter-spacing: 0.03em;
+}
+
+.overlayHeading {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-inverse);
+  line-height: var(--line-height-tight);
+}
+
+.overlaySubtext {
+  font-size: var(--font-size-base);
+  color: rgba(255, 255, 255, 0.82);
+  line-height: var(--line-height-relaxed);
+  max-width: 360px;
+}
+
+.overlayFooter {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: var(--spacing-6);
+}
+
+/* ── Right / only: form panel ────────────────────────────────── */
+.formPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: var(--spacing-10) var(--spacing-6);
+  gap: var(--spacing-6);
+
+  /* On mobile: transparent so the background image shows through */
+  background: transparent;
+
+  /* Sits above mobile background layers */
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Mobile logo ─────────────────────────────────────────────── */
+.mobileLogo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.mobileLogoImage {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.mobileLogoText {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-inverse);
+  letter-spacing: 0.02em;
+}
+
+/* ── Form content container ──────────────────────────────────── */
+.formContent {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ── Mobile footer ───────────────────────────────────────────── */
+.mobileFooter {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Desktop breakpoint (≥ 768px)
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  /* Show the image panel */
+  .imagePanelWrapper {
+    display: block;
+  }
+
+  /* Hide mobile-only layers */
+  .mobileBg,
+  .mobileBgScrim,
+  .mobileLogo,
+  .mobileFooter {
     display: none;
   }
 
+  /* Form panel: fixed width, white background */
   .formPanel {
-    width: 100%;
-    padding: var(--space-8) var(--space-6);
+    width: 480px;
+    min-width: 480px;
+    flex: none;
+    background-color: var(--color-surface-primary);
+    padding: var(--spacing-12) var(--spacing-10);
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .formPanel {
+    width: 520px;
+    min-width: 520px;
   }
 }

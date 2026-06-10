@@ -4,7 +4,7 @@ import {
   getAttendanceStatus,
   classesNeededForThreshold,
   projectFinalPercentage,
-} from './attendance.js';
+} from './attendance';
 
 describe('computeAttendancePercentage', () => {
   it('returns 75 for 15/20', () => expect(computeAttendancePercentage(15, 20)).toBe(75));

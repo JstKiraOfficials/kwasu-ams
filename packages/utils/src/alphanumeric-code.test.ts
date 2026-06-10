@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateAlphanumericCode, validateAlphanumericCode } from './alphanumeric-code.js';
-import { ALPHANUMERIC_CHARSET } from './constants/alphanumeric-charset.js';
-import { isOk, isErr } from './result.js';
+import { generateAlphanumericCode, validateAlphanumericCode } from './alphanumeric-code';
+import { ALPHANUMERIC_CHARSET } from './constants/alphanumeric-charset';
+import { isOk, isErr } from './result';
 
 describe('generateAlphanumericCode', () => {
   it('generates a 6-character code by default', () => {

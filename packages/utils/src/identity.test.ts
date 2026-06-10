@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  validateMatricNumber,
-  validateStaffId,
-  normaliseMatricNumber,
-} from './constants/identity.js';
+import { validateMatricNumber, validateStaffId, normaliseMatricNumber } from './constants/identity';
 
 describe('validateMatricNumber', () => {
   // Valid formats
