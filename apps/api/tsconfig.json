@@ -1,10 +1,16 @@
 {
   "extends": "../../packages/config/tsconfig/node.json",
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDir": "../../",
     "outDir": "./dist",
     "lib": ["ES2022"],
-    "types": ["node"]
+    "types": ["node"],
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
+    "paths": {
+      "@kwasu-ams/utils": ["../../packages/utils/src/index.ts"],
+      "@kwasu-ams/types": ["../../packages/types/src/index.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

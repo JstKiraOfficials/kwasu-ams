@@ -2,6 +2,7 @@
   "extends": "@kwasu-ams/config/tsconfig/nextjs.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["./src/*"],
       "@kwasu-ams/types": ["../../packages/types/src/index.ts"],
