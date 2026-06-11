@@ -116,7 +116,7 @@ export interface DashboardData {
   }>;
 
   // ── Exam Officer ─────────────────────────────────────────────────────────
-  /** Total number of students registered this semester. */
+  /** Total number of students registered this semester (Exam Officer). */
   totalStudentsCount?: number;
   /** Number of students with ELIGIBLE status. */
   eligibleCount?: number;
@@ -168,7 +168,7 @@ export interface DashboardData {
   /** Total registered user accounts. */
   totalUsers?: number;
   /** Total registered student accounts. */
-  totalStudents?: number;
+  registeredStudents?: number;
   /** Total registered staff (lecturer) accounts. */
   totalStaff?: number;
   /** Total number of departments in the university. */

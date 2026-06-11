@@ -45,9 +45,9 @@ export interface AttendanceHealthCardProps {
  * @returns One of `percentageSafe`, `percentageWarning`, or `percentageDanger`.
  */
 function percentageClass(pct: number): string {
-  if (pct >= 80) return styles.percentageSafe;
-  if (pct >= 75) return styles.percentageWarning;
-  return styles.percentageDanger;
+  if (pct >= 80) return styles.percentageSafe ?? '';
+  if (pct >= 75) return styles.percentageWarning ?? '';
+  return styles.percentageDanger ?? '';
 }
 
 /**

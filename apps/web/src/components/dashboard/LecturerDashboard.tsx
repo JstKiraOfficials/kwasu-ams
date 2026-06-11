@@ -183,7 +183,7 @@ export function LecturerDashboard(): ReactElement {
                     dataKey={code}
                     dot={false}
                     strokeWidth={2}
-                    className={styles[`chartLine${i % 5}` as keyof typeof styles]}
+                    className={styles[`chartLine${i % 5}` as keyof typeof styles] ?? ''}
                   />
                 ))}
               </LineChart>

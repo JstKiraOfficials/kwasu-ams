@@ -19,7 +19,6 @@ import {
   Settings,
   ClipboardList,
   Link2,
-  BarChart2,
   Building2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -122,7 +121,7 @@ export function SuperAdminDashboard(): ReactElement {
         />
         <StatsCard
           title="Students"
-          value={data?.totalStudents ?? 0}
+          value={data?.registeredStudents ?? 0}
           icon={<Users size={16} />}
           index={1}
         />

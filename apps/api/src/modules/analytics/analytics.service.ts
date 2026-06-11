@@ -1115,7 +1115,7 @@ async function computeSuperAdminDashboard(semesterId: string): Promise<Record<st
   return {
     ...vcData,
     totalUsers,
-    totalStudents,
+    registeredStudents: totalStudents,
     totalStaff,
     totalDepartments,
     pendingAnomalies,
