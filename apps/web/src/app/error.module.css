@@ -1,56 +1,91 @@
 /**
  * error.module.css
- * Styles for the global error boundary page.
+ * Styles for the global error boundary page — matches the 404 card layout.
  * All values use CSS custom properties — no hardcoded colours or sizes.
  */
 
-.container {
-  background-color: var(--color-surface-secondary);
-  padding: var(--spacing-6);
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  padding: var(--space-6);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-12) var(--space-10);
+  box-shadow: var(--shadow-lg);
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  animation: fadeInUp var(--ease-base) both;
+}
+
+.logo {
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
 }
 
 .icon {
-  font-size: var(--font-size-3xl);
-  color: var(--color-attendance-warning);
+  font-size: var(--text-4xl);
+  line-height: 1;
+  color: var(--color-att-warning);
 }
 
 .heading {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  text-align: center;
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  margin: 0;
 }
 
 .message {
-  font-size: var(--font-size-base);
+  font-size: var(--text-sm);
   color: var(--color-text-secondary);
-  text-align: center;
-  max-width: 40ch;
+  line-height: 1.6;
+  max-width: 280px;
+  margin: 0;
 }
 
 .digest {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-disabled);
-  font-family: var(--font-family-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-family: monospace;
+  margin: 0;
 }
 
-.retryBtn {
-  padding: var(--spacing-2) var(--spacing-6);
-  background-color: var(--color-kwasu-green);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  padding: var(--space-2) var(--space-8);
   border-radius: var(--radius-md);
+  text-decoration: none;
   border: none;
   cursor: pointer;
-  transition: opacity var(--transition-base);
+  transition: opacity var(--ease-fast);
+  min-height: 40px;
+  margin-top: var(--space-2);
 }
 
-.retryBtn:hover {
-  opacity: 0.85;
+.btn:hover {
+  opacity: 0.88;
 }
 
-.retryBtn:focus-visible {
-  outline: 2px solid var(--color-kwasu-green);
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

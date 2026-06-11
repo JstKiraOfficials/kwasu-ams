@@ -56,8 +56,8 @@ export default function NotFound(): ReactElement {
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
 
-        <Link href="/login" className={styles.btn}>
-          Back to home
+        <Link href="/dashboard" className={styles.btn}>
+          Go to Dashboard
         </Link>
       </div>
     </div>

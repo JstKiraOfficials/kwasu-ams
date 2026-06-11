@@ -9,11 +9,11 @@
  * in any route segment. Must be a Client Component (`'use client'`) because
  * it receives the `error` and `reset` props from the React error boundary.
  *
- * Displays a user-friendly error message and a "Try again" button that
- * calls `reset()` to attempt re-rendering the failed segment.
+ * Styled to match the 404 page — branded card with KWASU logo.
  */
 
 import { useEffect, type ReactElement } from 'react';
+import Image from 'next/image';
 import styles from './error.module.css';
 
 /**
@@ -29,8 +29,9 @@ interface ErrorPageProps {
 /**
  * Global error boundary page for the Next.js App Router.
  *
- * Logs the error to the console on mount (Sentry integration added in a later
- * phase). Renders a centred card with the error message and a retry button.
+ * Styled identically to the 404 page for visual consistency.
+ * Logs the error to the console on mount. Renders a retry button
+ * that calls `reset()` to attempt re-rendering the failed segment.
  *
  * @param props - {@link ErrorPageProps} injected by Next.js.
  * @returns The rendered error page element.
@@ -42,20 +43,32 @@ export default function GlobalError({ error, reset }: ErrorPageProps): ReactElem
   }, [error]);
 
   return (
-    <div
-      className={`flex flex-col items-center justify-center min-h-screen gap-4 ${styles.container}`}
-    >
-      <span className={styles.icon} aria-hidden="true">
-        ⚠
-      </span>
-      <h1 className={styles.heading}>Something went wrong</h1>
-      <p className={styles.message}>
-        {error.message || 'An unexpected error occurred. Please try again.'}
-      </p>
-      {error.digest && <p className={styles.digest}>Error ID: {error.digest}</p>}
-      <button type="button" className={styles.retryBtn} onClick={reset}>
-        Try again
-      </button>
+    <div className={styles.page}>
+      <div className={styles.card}>
+        <Image
+          src="/kwasuLogo.png"
+          alt="KWASU AMS"
+          width={56}
+          height={56}
+          className={styles.logo}
+          priority
+        />
+
+        <span className={styles.icon} aria-hidden="true">
+          ⚠
+        </span>
+
+        <h1 className={styles.heading}>Something went wrong</h1>
+        <p className={styles.message}>
+          {error.message || 'An unexpected error occurred. Please try again.'}
+        </p>
+
+        {error.digest && <p className={styles.digest}>Error ID: {error.digest}</p>}
+
+        <button type="button" className={styles.btn} onClick={reset}>
+          Try again
+        </button>
+      </div>
     </div>
   );
 }
