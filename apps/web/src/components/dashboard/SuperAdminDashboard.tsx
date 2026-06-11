@@ -105,7 +105,9 @@ export function SuperAdminDashboard(): ReactElement {
   }
 
   const logs = data?.recentAuditLogs ?? [];
-  const faculties = (data?.facultyBreakdown ?? []).sort((a, b) => b.avgRate - a.avgRate);
+  const faculties = (data?.facultyBreakdown ?? [])
+    .map((f) => ({ ...f, avgRate: f.avgRate ?? 0 }))
+    .sort((a, b) => b.avgRate - a.avgRate);
 
   return (
     <div className={styles.page}>

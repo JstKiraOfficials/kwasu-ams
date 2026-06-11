@@ -122,7 +122,9 @@ export function AcademicAffairsDashboard(): ReactElement {
   }
 
   const activeSessions = liveActiveSessions ?? data?.activeSessionsNow ?? 0;
-  const faculties = (data?.facultyBreakdown ?? []).sort((a, b) => b.avgRate - a.avgRate);
+  const faculties = (data?.facultyBreakdown ?? [])
+    .map((f) => ({ ...f, avgRate: f.avgRate ?? 0 }))
+    .sort((a, b) => b.avgRate - a.avgRate);
   const flagged = data?.flaggedCourses ?? [];
 
   return (

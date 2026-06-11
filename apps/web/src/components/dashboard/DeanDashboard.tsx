@@ -81,7 +81,9 @@ export function DeanDashboard(): ReactElement {
     );
   }
 
-  const depts = (data?.departmentBreakdown ?? []).sort((a, b) => b.avgRate - a.avgRate);
+  const depts = (data?.departmentBreakdown ?? [])
+    .map((d) => ({ ...d, avgRate: d.avgRate ?? 0 }))
+    .sort((a, b) => b.avgRate - a.avgRate);
 
   return (
     <div className={styles.page}>

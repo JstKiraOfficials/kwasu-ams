@@ -96,7 +96,9 @@ export function ViceChancellorDashboard(): ReactElement {
 
   const univRate = data?.universityRate ?? 0;
   const isCompliant = univRate >= 75;
-  const faculties = (data?.facultyBreakdown ?? []).sort((a, b) => b.avgRate - a.avgRate);
+  const faculties = (data?.facultyBreakdown ?? [])
+    .map((f) => ({ ...f, avgRate: f.avgRate ?? 0 }))
+    .sort((a, b) => b.avgRate - a.avgRate);
   const trend = data?.weeklyTrend ?? [];
 
   return (
