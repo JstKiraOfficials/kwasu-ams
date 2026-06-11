@@ -1,0 +1,52 @@
+/**
+ * ActiveSessionBanner.module.css
+ * Full-width green active session banner for the lecturer dashboard.
+ */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  border-radius: var(--radius-md);
+  width: 100%;
+}
+
+.indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-att-safe);
+  flex-shrink: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.25); }
+}
+
+.text {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.link {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--color-att-safe);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: opacity var(--ease-fast);
+}
+
+.link:hover { opacity: 0.75; }
+
+.link:focus-visible {
+  outline: 2px solid var(--color-att-safe);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

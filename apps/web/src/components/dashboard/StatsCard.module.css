@@ -1,0 +1,75 @@
+/**
+ * StatsCard.module.css
+ * Glassmorphism stat card used in all role dashboards.
+ */
+
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  animation: fadeInUp var(--ease-base) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--fw-medium);
+}
+
+.icon {
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.value {
+  font-size: var(--text-3xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  line-height: 1.1;
+  margin-top: var(--space-2);
+}
+
+.subtitle {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.trend {
+  font-size: var(--text-xs);
+  margin-top: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.trendUp    { color: var(--color-att-safe); }
+.trendDown  { color: var(--color-att-danger); }
+.trendStable { color: var(--color-text-secondary); }
+
+/* ── Variants ── */
+.variantSuccess .value { color: var(--color-att-safe); }
+.variantWarning .value { color: var(--color-att-warning); }
+.variantDanger  .value { color: var(--color-att-danger); }
+
+/* ── Dark mode ── */
+[data-theme='dark'] .card {
+  background: rgba(20, 20, 20, 0.80);
+  border-color: rgba(255, 255, 255, 0.08);
+}

@@ -1,0 +1,40 @@
+/**
+ * HodDashboard.module.css
+ * Layout for the Head of Department dashboard.
+ */
+
+.page { display: flex; flex-direction: column; gap: var(--space-6); }
+
+.statsGrid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+@media (min-width: 640px)  { .statsGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .statsGrid { grid-template-columns: repeat(4, 1fr); } }
+
+.sectionTitle { font-size: var(--text-lg); font-weight: var(--fw-semibold); color: var(--color-text); margin-bottom: var(--space-4); }
+
+.tableWrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.table th { padding: var(--space-3) var(--space-4); text-align: left; font-size: var(--text-xs); font-weight: var(--fw-semibold); color: var(--color-text-secondary); background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); text-transform: uppercase; letter-spacing: 0.04em; }
+.table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border-subtle); color: var(--color-text); }
+.table tr:last-child td { border-bottom: none; }
+
+.code { font-weight: var(--fw-semibold); }
+.subtext { font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+.safe    { color: var(--color-att-safe); font-weight: var(--fw-semibold); }
+.warn    { color: var(--color-att-warning); font-weight: var(--fw-semibold); }
+.danger  { color: var(--color-att-danger); font-weight: var(--fw-semibold); }
+
+.trendBadge { font-size: var(--text-xs); font-weight: var(--fw-semibold); padding: 2px var(--space-2); border-radius: var(--radius-full); }
+.trendBadge.up     { background: rgba(22,163,74,0.1); color: var(--color-att-safe); }
+.trendBadge.down   { background: rgba(220,38,38,0.1); color: var(--color-att-danger); }
+.trendBadge.stable { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+
+.accountabilityList { display: flex; flex-direction: column; gap: var(--space-2); }
+.accountabilityRow { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: var(--space-4); }
+.lecturerName { font-size: var(--text-sm); font-weight: var(--fw-medium); color: var(--color-text); flex: 1; }
+.sessions { font-size: var(--text-xs); color: var(--color-text-secondary); }
+.badge { font-size: var(--text-xs); font-weight: var(--fw-bold); padding: 2px var(--space-2); border-radius: var(--radius-full); }
+
+.skeleton { height: 400px; border-radius: var(--radius-lg); background: linear-gradient(90deg, var(--color-bg-tertiary) 25%, var(--color-bg-secondary) 50%, var(--color-bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer var(--ease-slow) infinite; }
+.error { padding: var(--space-8); text-align: center; color: var(--color-text-secondary); font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-3); align-items: center; }
+.error button { font-size: var(--text-sm); color: var(--color-primary); text-decoration: underline; cursor: pointer; background: none; border: none; }

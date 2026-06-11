@@ -1,0 +1,67 @@
+/**
+ * LecturerDashboard.module.css
+ * Layout and chart styles for the lecturer dashboard.
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+@media (min-width: 640px)  { .statsGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .statsGrid { grid-template-columns: repeat(4, 1fr); } }
+
+.sectionTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+}
+
+.chartContainer {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+/* CSS-variable-driven line colours — no hardcoded hex in JSX */
+.chartLine0 { stroke: var(--color-primary); }
+.chartLine1 { stroke: var(--color-att-warning); }
+.chartLine2 { stroke: var(--color-info); }
+.chartLine3 { stroke: var(--color-att-danger); }
+.chartLine4 { stroke: var(--color-att-safe); }
+
+.skeleton {
+  height: 400px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--color-bg-tertiary) 25%, var(--color-bg-secondary) 50%, var(--color-bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer var(--ease-slow) infinite;
+}
+
+.error {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.error button {
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+}

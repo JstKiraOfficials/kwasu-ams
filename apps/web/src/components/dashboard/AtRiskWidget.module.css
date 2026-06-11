@@ -1,0 +1,99 @@
+/**
+ * AtRiskWidget.module.css
+ * At-risk student list widget styles.
+ */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  gap: var(--space-4);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.matric {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.03em;
+}
+
+.name {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.percentage {
+  font-size: var(--text-base);
+  font-weight: var(--fw-bold);
+  color: var(--color-att-danger);
+  min-width: 44px;
+  text-align: right;
+}
+
+.warnBtn {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-att-danger);
+  border: 1px solid var(--color-att-danger);
+  cursor: pointer;
+  transition: opacity var(--ease-fast);
+  min-height: 28px;
+}
+
+.warnBtn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.warnBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.warnBtnDone {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--color-att-safe);
+  border-color: var(--color-att-safe);
+}
+
+.empty {
+  padding: var(--space-6);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

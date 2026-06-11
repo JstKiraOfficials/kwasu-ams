@@ -1,0 +1,68 @@
+/**
+ * ViceChancellorDashboard.module.css
+ * Layout for the Vice Chancellor dashboard including the hero KPI card.
+ */
+
+.page { display: flex; flex-direction: column; gap: var(--space-6); }
+
+/* ── Hero KPI card ── */
+.heroCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-8) var(--space-8);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  animation: fadeInUp var(--ease-base) both;
+}
+
+.heroLeft { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.heroLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.heroValue {
+  font-size: var(--text-4xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.complianceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  width: fit-content;
+}
+
+.compliant    { background: rgba(22,163,74,0.1); color: var(--color-att-safe); }
+.nonCompliant { background: rgba(220,38,38,0.1); color: var(--color-att-danger); }
+
+.heroRight { color: var(--color-text-secondary); opacity: 0.25; }
+
+/* ── Stats ── */
+.statsGrid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+@media (min-width: 640px)  { .statsGrid { grid-template-columns: repeat(3, 1fr); } }
+
+.sectionTitle { font-size: var(--text-lg); font-weight: var(--fw-semibold); color: var(--color-text); margin-bottom: var(--space-4); }
+
+.chartContainer { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5); }
+
+.skeleton { height: 500px; border-radius: var(--radius-lg); background: linear-gradient(90deg, var(--color-bg-tertiary) 25%, var(--color-bg-secondary) 50%, var(--color-bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer var(--ease-slow) infinite; }
+.error { padding: var(--space-8); text-align: center; color: var(--color-text-secondary); font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-3); align-items: center; }
+.error button { font-size: var(--text-sm); color: var(--color-primary); text-decoration: underline; cursor: pointer; background: none; border: none; }
+
+[data-theme='dark'] .heroCard { background: rgba(20,20,20,0.80); border-color: rgba(255,255,255,0.08); }
