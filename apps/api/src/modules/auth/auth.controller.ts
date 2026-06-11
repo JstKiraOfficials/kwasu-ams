@@ -48,7 +48,14 @@ export async function loginHandler(request: FastifyRequest, reply: FastifyReply)
  *
  * Reads the refresh token from the request body or, if absent, from the
  * `refreshToken` HttpOnly cookie set by the web client. Rotates the token
- * pair via {@link authService.refreshToken} and returns the new tokens.
+ * pair via {@link authService.refreshToken}, sets the new refresh token as an
+ * HttpOnly cookie (so subsequent refreshes use the rotated token), and returns
+ * both tokens in the response body for mobile clients.
+ *
+ * Without rotating the cookie here, single-use token semantics would blocklist
+ * the old token on the first refresh, causing every subsequent automatic
+ * refresh attempt to fail with 401 (the browser would keep sending the stale,
+ * now-blocklisted cookie value).
  *
  * @param request - Fastify request. Refresh token may be in body or cookie.
  * @param reply   - Fastify reply used to send the HTTP response.
@@ -72,6 +79,15 @@ export async function refreshTokenHandler(
   }
 
   const result = await authService.refreshToken(refreshToken);
+
+  // Rotate the HttpOnly cookie so the browser sends the new token on the next
+  // refresh. Without this, the old (now blocklisted) token stays in the cookie
+  // and every subsequent POST /auth/refresh call fails with 401.
+  reply.header(
+    'Set-Cookie',
+    `refreshToken=${result.refreshToken}; HttpOnly; SameSite=Strict; Path=/auth/refresh; Max-Age=604800${env.NODE_ENV === 'production' ? '; Secure' : ''}`,
+  );
+
   void reply.status(200).send(result);
 }
 

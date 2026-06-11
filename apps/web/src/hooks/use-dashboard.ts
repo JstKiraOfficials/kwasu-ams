@@ -167,6 +167,12 @@ export interface DashboardData {
   // ── Super Admin ───────────────────────────────────────────────────────────
   /** Total registered user accounts. */
   totalUsers?: number;
+  /** Total registered student accounts. */
+  totalStudents?: number;
+  /** Total registered staff (lecturer) accounts. */
+  totalStaff?: number;
+  /** Total number of departments in the university. */
+  totalDepartments?: number;
   /** Number of anomaly flags not yet reviewed. */
   pendingAnomalies?: number;
   /** Webhook events dispatched today. */
@@ -177,6 +183,7 @@ export interface DashboardData {
   recentAuditLogs?: Array<{
     id: string;
     actorName: string;
+    actorIdentifier: string;
     action: string;
     entityType: string;
     timestamp: string;

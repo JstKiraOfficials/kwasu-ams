@@ -20,6 +20,7 @@ import {
   ClipboardList,
   Link2,
   BarChart2,
+  Building2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useDashboard } from '../../hooks/use-dashboard';
@@ -120,31 +121,55 @@ export function SuperAdminDashboard(): ReactElement {
           index={0}
         />
         <StatsCard
+          title="Students"
+          value={data?.totalStudents ?? 0}
+          icon={<Users size={16} />}
+          index={1}
+        />
+        <StatsCard
+          title="Staff"
+          value={data?.totalStaff ?? 0}
+          icon={<Users size={16} />}
+          index={2}
+        />
+        <StatsCard
+          title="Faculties"
+          value={data?.totalFaculties ?? 0}
+          icon={<Building2 size={16} />}
+          index={3}
+        />
+        <StatsCard
+          title="Departments"
+          value={data?.totalDepartments ?? 0}
+          icon={<Building2 size={16} />}
+          index={4}
+        />
+        <StatsCard
           title="Active Sessions"
           value={data?.activeSessionsNow ?? 0}
           icon={<Activity size={16} />}
           variant={(data?.activeSessionsNow ?? 0) > 0 ? 'success' : 'default'}
-          index={1}
+          index={5}
         />
         <StatsCard
           title="Pending Anomalies"
           value={data?.pendingAnomalies ?? 0}
           icon={<AlertTriangle size={16} />}
           variant={(data?.pendingAnomalies ?? 0) > 0 ? 'warning' : 'default'}
-          index={2}
+          index={6}
         />
         <StatsCard
           title="Webhook Events Today"
           value={data?.webhookEventsToday ?? 0}
           icon={<Webhook size={16} />}
-          index={3}
+          index={7}
         />
         <StatsCard
           title="System Uptime"
           value={data?.systemUptime ?? '—'}
           icon={<Clock size={16} />}
           variant="success"
-          index={4}
+          index={8}
         />
       </section>
 
@@ -170,6 +195,7 @@ export function SuperAdminDashboard(): ReactElement {
               <thead>
                 <tr>
                   <th>Actor</th>
+                  <th>ID</th>
                   <th>Action</th>
                   <th>Entity</th>
                   <th>Time</th>
@@ -179,6 +205,7 @@ export function SuperAdminDashboard(): ReactElement {
                 {logs.map((log) => (
                   <tr key={log.id}>
                     <td>{log.actorName}</td>
+                    <td className={styles.identifier}>{log.actorIdentifier}</td>
                     <td>
                       <span className={styles.action}>{log.action}</span>
                     </td>

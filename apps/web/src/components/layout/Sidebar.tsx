@@ -205,8 +205,8 @@ const NAV_CONFIG: Record<Role, NavSection[]> = {
   [Role.VICE_CHANCELLOR]: [
     {
       items: [
-        { label: 'Executive Overview', href: '/executive', icon: LayoutDashboard },
-        { label: 'Analytics', href: '/executive/analytics', icon: BarChart3 },
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Analytics', href: '/analytics', icon: BarChart3 },
         { label: 'Reports', href: '/reports', icon: FileText },
         { label: 'Live Map', href: '/map', icon: Map },
       ],
