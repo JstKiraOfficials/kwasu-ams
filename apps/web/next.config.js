@@ -2,9 +2,15 @@
 const nextConfig = {
   transpilePackages: ['@kwasu-ams/types', '@kwasu-ams/utils'],
   images: {
-    domains: [
-      'kwasu-ams-excuses.s3.eu-west-1.amazonaws.com',
-      'kwasu-ams-reports.s3.eu-west-1.amazonaws.com',
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'kwasu-ams-excuses.s3.eu-west-1.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'kwasu-ams-reports.s3.eu-west-1.amazonaws.com',
+      },
     ],
   },
 };

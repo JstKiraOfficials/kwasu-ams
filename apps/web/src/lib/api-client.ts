@@ -81,6 +81,7 @@ async function refreshAccessToken(): Promise<void> {
     method: 'POST',
     credentials: 'include', // send the HttpOnly refresh-token cookie
     headers: { 'Content-Type': 'application/json' },
+    body: '{}', // Fastify rejects empty body when Content-Type is application/json
   });
 
   if (!res.ok) {
