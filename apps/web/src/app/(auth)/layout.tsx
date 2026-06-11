@@ -79,7 +79,14 @@ export default function AuthLayout({ children }: AuthLayoutProps): ReactElement 
       <div className={styles.shell}>
         {/* ── Mobile: full-viewport background image ── */}
         <div className={styles.mobileBg} aria-hidden="true">
-          <Image src="/background.jpg" alt="" fill className={styles.mobileBgImage} sizes="100vw" />
+          <Image
+            src="/background.jpg"
+            alt=""
+            fill
+            priority
+            className={styles.mobileBgImage}
+            sizes="100vw"
+          />
         </div>
         <div className={styles.mobileBgScrim} aria-hidden="true" />
 
