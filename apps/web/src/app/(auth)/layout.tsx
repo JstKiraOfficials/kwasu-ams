@@ -85,7 +85,7 @@ export default function AuthLayout({ children }: AuthLayoutProps): ReactElement 
             fill
             priority
             className={styles.mobileBgImage}
-            sizes="100vw"
+            sizes="(max-width: 767px) 100vw, 0vw"
           />
         </div>
         <div className={styles.mobileBgScrim} aria-hidden="true" />
