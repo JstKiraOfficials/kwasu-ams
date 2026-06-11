@@ -34,7 +34,7 @@
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: rgba(26, 107, 60, 0.28); /* light KWASU green tint — matches desktop overlay */
+  background: rgba(26, 107, 60, 0.55); /* deeper KWASU green tint */
   display: block;
 }
 
@@ -55,7 +55,7 @@
 .imageOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(26, 107, 60, 0.28); /* light KWASU green tint */
+  background: rgba(26, 107, 60, 0.55); /* deeper KWASU green tint */
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
