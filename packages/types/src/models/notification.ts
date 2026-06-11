@@ -1,7 +1,4 @@
-import type {
-  NotificationChannel,
-  NotificationStatus,
-} from '../enums/notification-channel.enum.js';
+import type { NotificationChannel, NotificationStatus } from '../enums/notification-channel.enum';
 
 export interface INotification {
   id: string;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ExcuseReason } from '../enums/excuse-reason.enum.js';
+import { ExcuseReason } from '../enums/excuse-reason.enum';
 
 export const SubmitExcuseSchema = z
   .object({

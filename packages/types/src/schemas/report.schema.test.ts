@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ReportFilterSchema } from './report.schema.js';
+import { ReportFilterSchema } from './report.schema';
 
 const VALID_UUID = 'a0000000-0000-4000-8000-000000000001';
 

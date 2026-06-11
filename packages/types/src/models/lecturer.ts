@@ -1,4 +1,4 @@
-import type { IUserPublic } from './user.js';
+import type { IUserPublic } from './user';
 
 export interface ILecturer {
   id: string;

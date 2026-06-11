@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Role } from '../enums/role.enum.js';
+import { Role } from '../enums/role.enum';
 
 export const CreateUserSchema = z.object({
   identifier: z.string().min(1, 'Identifier is required'),

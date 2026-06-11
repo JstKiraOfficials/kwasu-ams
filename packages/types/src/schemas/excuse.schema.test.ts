@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { SubmitExcuseSchema } from './excuse.schema.js';
-import { ExcuseReason } from '../enums/excuse-reason.enum.js';
+import { SubmitExcuseSchema } from './excuse.schema';
+import { ExcuseReason } from '../enums/excuse-reason.enum';
 
 const BASE_VALID = {
   courseSectionId: '4898aca2-eb50-44a4-b720-598ff049a603',

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { CreateUserSchema, UpdateUserSchema, UpdateProfileSchema } from './user.schema.js';
-import { Role } from '../enums/role.enum.js';
+import { CreateUserSchema, UpdateUserSchema, UpdateProfileSchema } from './user.schema';
+import { Role } from '../enums/role.enum';
 
 const VALID_UUID = 'a0000000-0000-4000-8000-000000000001';
 

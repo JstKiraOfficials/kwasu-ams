@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CreateCourseSchema, EnrollStudentsSchema } from './course.schema.js';
+import { CreateCourseSchema, EnrollStudentsSchema } from './course.schema';
 
 describe('CreateCourseSchema', () => {
   const valid = {

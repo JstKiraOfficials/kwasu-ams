@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CreateTimetableEntrySchema } from './timetable.schema.js';
+import { CreateTimetableEntrySchema } from './timetable.schema';
 
 const VALID_UUID = 'a0000000-0000-4000-8000-000000000001';
 

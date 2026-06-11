@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AttendanceStatus } from '../enums/attendance-status.enum.js';
+import { AttendanceStatus } from '../enums/attendance-status.enum';
 
 export const CreateSessionSchema = z.object({
   courseSectionId: z.string().uuid(),

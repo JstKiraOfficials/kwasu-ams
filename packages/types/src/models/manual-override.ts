@@ -1,5 +1,5 @@
-import type { Role } from '../enums/role.enum.js';
-import type { AttendanceStatus } from '../enums/attendance-status.enum.js';
+import type { Role } from '../enums/role.enum';
+import type { AttendanceStatus } from '../enums/attendance-status.enum';
 
 export interface IManualOverride {
   id: string;

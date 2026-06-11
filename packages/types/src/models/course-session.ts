@@ -1,4 +1,4 @@
-import type { SessionStatus } from '../enums/session-status.enum.js';
+import type { SessionStatus } from '../enums/session-status.enum';
 
 export interface ICourseSession {
   id: string;

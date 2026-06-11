@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { CreateSessionSchema, OverrideAttendanceSchema } from './session.schema.js';
-import { AttendanceStatus } from '../enums/attendance-status.enum.js';
+import { CreateSessionSchema, OverrideAttendanceSchema } from './session.schema';
+import { AttendanceStatus } from '../enums/attendance-status.enum';
 
 const VALID_UUID = 'a0000000-0000-4000-8000-000000000001';
 

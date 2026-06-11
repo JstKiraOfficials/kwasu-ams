@@ -1,4 +1,4 @@
-import type { DeviceStatus } from '../enums/device-status.enum.js';
+import type { DeviceStatus } from '../enums/device-status.enum';
 
 export interface IDeviceBinding {
   id: string;

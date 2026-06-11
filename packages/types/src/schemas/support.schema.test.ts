@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { CreateTicketSchema } from './support.schema.js';
-import { TicketCategory } from '../enums/ticket-status.enum.js';
+import { CreateTicketSchema } from './support.schema';
+import { TicketCategory } from '../enums/ticket-status.enum';
 
 describe('CreateTicketSchema', () => {
   const valid = {

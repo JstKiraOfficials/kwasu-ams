@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CreateLecturerSchema } from './lecturer.schema.js';
+import { CreateLecturerSchema } from './lecturer.schema';
 
 const BASE = {
   userId: 'a407cb45-63a6-4ffb-9ebe-16601fa540c6',

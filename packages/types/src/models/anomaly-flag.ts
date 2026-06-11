@@ -1,4 +1,4 @@
-import type { AnomalyType } from '../enums/anomaly-type.enum.js';
+import type { AnomalyType } from '../enums/anomaly-type.enum';
 
 export interface IAnomalyFlag {
   id: string;

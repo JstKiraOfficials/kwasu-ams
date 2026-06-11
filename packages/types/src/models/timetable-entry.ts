@@ -1,4 +1,4 @@
-import type { DayOfWeek } from '../enums/day-of-week.enum.js';
+import type { DayOfWeek } from '../enums/day-of-week.enum';
 
 export interface ITimetableEntry {
   id: string;

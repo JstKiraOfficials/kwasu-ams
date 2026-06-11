@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EligibilityAppealSchema } from './eligibility.schema.js';
+import { EligibilityAppealSchema } from './eligibility.schema';
 
 describe('EligibilityAppealSchema', () => {
   it('accepts a reason of exactly 20 characters', () => {

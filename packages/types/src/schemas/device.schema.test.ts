@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RegisterDeviceSchema } from './device.schema.js';
+import { RegisterDeviceSchema } from './device.schema';
 
 describe('RegisterDeviceSchema', () => {
   const valid = {

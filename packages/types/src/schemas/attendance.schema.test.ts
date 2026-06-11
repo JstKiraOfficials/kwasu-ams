@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GpsCheckinSchema, QrCheckinSchema, CodeCheckinSchema } from './attendance.schema.js';
+import { GpsCheckinSchema, QrCheckinSchema, CodeCheckinSchema } from './attendance.schema';
 
 const BASE = {
   latitude: 8.552,

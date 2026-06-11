@@ -1,4 +1,4 @@
-import type { SemesterType } from '../enums/semester-type.enum.js';
+import type { SemesterType } from '../enums/semester-type.enum';
 
 export interface ISemester {
   id: string;

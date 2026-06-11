@@ -1,5 +1,5 @@
-import type { Role } from '../enums/role.enum.js';
-import type { TicketStatus, TicketCategory } from '../enums/ticket-status.enum.js';
+import type { Role } from '../enums/role.enum';
+import type { TicketStatus, TicketCategory } from '../enums/ticket-status.enum';
 
 export interface ISupportTicket {
   id: string;

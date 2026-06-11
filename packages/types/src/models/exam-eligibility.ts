@@ -1,4 +1,4 @@
-import type { EligibilityStatus } from '../enums/eligibility-status.enum.js';
+import type { EligibilityStatus } from '../enums/eligibility-status.enum';
 
 export interface IExamEligibility {
   id: string;

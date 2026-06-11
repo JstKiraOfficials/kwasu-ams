@@ -1,5 +1,5 @@
-import type { ExcuseReason } from '../enums/excuse-reason.enum.js';
-import type { ExcuseStatus } from '../enums/excuse-status.enum.js';
+import type { ExcuseReason } from '../enums/excuse-reason.enum';
+import type { ExcuseStatus } from '../enums/excuse-status.enum';
 
 export interface IExcuseLetter {
   id: string;

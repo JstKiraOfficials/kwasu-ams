@@ -1,5 +1,5 @@
-import type { AttendanceStatus } from '../enums/attendance-status.enum.js';
-import type { CheckInMethod } from '../enums/check-in-method.enum.js';
+import type { AttendanceStatus } from '../enums/attendance-status.enum';
+import type { CheckInMethod } from '../enums/check-in-method.enum';
 
 export interface IAttendanceRecord {
   id: string;

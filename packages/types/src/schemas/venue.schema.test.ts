@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CreateVenueSchema } from './venue.schema.js';
+import { CreateVenueSchema } from './venue.schema';
 
 const BASE = {
   name: 'Main Lecture Theatre 1',

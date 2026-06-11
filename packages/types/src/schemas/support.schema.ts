@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TicketCategory } from '../enums/ticket-status.enum.js';
+import { TicketCategory } from '../enums/ticket-status.enum';
 
 export const CreateTicketSchema = z.object({
   category: z.nativeEnum(TicketCategory),

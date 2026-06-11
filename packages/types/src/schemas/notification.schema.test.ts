@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NotificationPreferencesSchema } from './notification.schema.js';
+import { NotificationPreferencesSchema } from './notification.schema';
 
 describe('NotificationPreferencesSchema', () => {
   it('accepts all channels enabled', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CreateWebhookSchema } from './webhook.schema.js';
+import { CreateWebhookSchema } from './webhook.schema';
 
 describe('CreateWebhookSchema', () => {
   const valid = {
