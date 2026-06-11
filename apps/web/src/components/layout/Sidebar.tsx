@@ -14,6 +14,7 @@
 
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -303,9 +304,14 @@ export function Sidebar({ role, collapsed, onToggleCollapse }: SidebarProps): Re
     <div className={styles.sidebar}>
       {/* Logo */}
       <div className={styles.logoArea}>
-        <div className={styles.logoMark} aria-hidden="true">
-          KA
-        </div>
+        <Image
+          src="/kwasuLogo.png"
+          alt="KWASU logo"
+          width={36}
+          height={36}
+          className={styles.logoImg}
+          priority
+        />
         <div className={`${styles.logoText} ${collapsed ? styles.logoTextCollapsed : ''}`}>
           <span className={styles.logoName}>KWASU AMS</span>
           <span className={styles.logoSub}>Attendance System</span>

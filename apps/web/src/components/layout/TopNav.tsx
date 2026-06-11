@@ -5,16 +5,28 @@
  * Top navigation bar rendered inside the `AppShell` above every app page.
  *
  * Left side: hamburger toggle (mobile only) and pathname-derived breadcrumb.
- * Right side: global search icon, dark/light mode toggle, notification bell
- * with unread-count badge, and a user avatar with a role pill. Clicking the
- * avatar opens a dropdown with Profile, Settings, and Sign Out actions.
+ * Right side: global search icon (opens inline search bar), dark/light mode
+ * toggle, notification bell (opens dropdown panel), and a user avatar with a
+ * role pill. Clicking the avatar opens a dropdown with Profile, Settings, and
+ * Sign Out actions.
  */
 
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, Search, Sun, Moon, Bell, User, Settings, LogOut, ChevronRight } from 'lucide-react';
+import {
+  Menu,
+  Search,
+  Sun,
+  Moon,
+  Bell,
+  User,
+  Settings,
+  LogOut,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 import type { IUserPublic } from '@kwasu-ams/types';
 import { useTheme } from '../../providers/theme-provider';
 import { useAuth } from '../../hooks/use-auth';
@@ -61,6 +73,22 @@ function formatRole(role: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// ── Types ──────────────────────────────────────────────────────────────────
+
+/**
+ * A single notification entry displayed in the notification dropdown.
+ */
+interface NotificationItem {
+  /** Unique identifier. */
+  id: string;
+  /** Notification message text. */
+  message: string;
+  /** ISO timestamp string. */
+  createdAt: string;
+  /** Whether the notification has been read. */
+  read: boolean;
+}
+
 // ── Props ──────────────────────────────────────────────────────────────────
 
 /**
@@ -74,6 +102,8 @@ interface TopNavProps {
   onMenuClick: () => void;
   /** Unread notification count shown on the bell icon badge. */
   unreadCount?: number;
+  /** Recent notifications to show in the dropdown panel. */
+  notifications?: NotificationItem[];
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -82,38 +112,69 @@ interface TopNavProps {
  * Application top navigation bar.
  *
  * Renders inside the `AppShell` `topNav` slot. Consumes `useAuth` for user
- * data and `useTheme` for the dark-mode toggle. The dropdown closes on
- * outside click via a `mousedown` document listener.
+ * data and `useTheme` for the dark-mode toggle.
  *
- * @param props - `TopNavProps` containing `onMenuClick` and optional `unreadCount`.
+ * - Search: clicking the icon expands an inline search input; pressing Escape
+ *   or clicking outside collapses it.
+ * - Notifications: clicking the bell opens a dropdown panel listing recent
+ *   notifications inline — does not navigate to `/notifications`.
+ * - User dropdown: closes on outside click via a `mousedown` document listener.
+ *
+ * @param props - `TopNavProps` containing `onMenuClick`, optional `unreadCount`,
+ *   and optional `notifications`.
  * @returns The top navigation bar JSX element.
  */
-export function TopNav({ onMenuClick, unreadCount = 0 }: TopNavProps): React.JSX.Element {
+export function TopNav({
+  onMenuClick,
+  unreadCount = 0,
+  notifications = [],
+}: TopNavProps): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // ── Breadcrumb from pathname ─────────────────────────────────────────
   const breadcrumbSegments = pathname.split('/').filter(Boolean).map(formatSegment);
 
-  // ── Close dropdown on outside click ─────────────────────────────────
+  // ── Close dropdowns on outside click ────────────────────────────────
   const handleOutsideClick = useCallback((e: MouseEvent): void => {
     if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
       setDropdownOpen(false);
     }
+    if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      setNotifOpen(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [handleOutsideClick]);
+
+  // ── Focus search input when opened ──────────────────────────────────
+  useEffect(() => {
+    if (searchOpen) {
+      searchRef.current?.focus();
     }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [dropdownOpen, handleOutsideClick]);
+  }, [searchOpen]);
+
+  // ── Keyboard: Escape closes search ──────────────────────────────────
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Escape') {
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+  }, []);
 
   // ── Logout handler ───────────────────────────────────────────────────
   const handleLogout = useCallback(async (): Promise<void> => {
@@ -129,7 +190,7 @@ export function TopNav({ onMenuClick, unreadCount = 0 }: TopNavProps): React.JSX
 
   return (
     <div className={styles.topNav}>
-      {/* Left: hamburger (mobile) + breadcrumb */}
+      {/* Left: hamburger (mobile) + breadcrumb — always visible */}
       <div className={styles.left}>
         <button
           type="button"
@@ -143,7 +204,7 @@ export function TopNav({ onMenuClick, unreadCount = 0 }: TopNavProps): React.JSX
         {breadcrumbSegments.length > 0 && (
           <nav aria-label="Breadcrumb" className={styles.breadcrumb}>
             {breadcrumbSegments.map((seg, idx) => (
-              <span key={idx} className="flex items-center gap-2">
+              <span key={idx} className={styles.breadcrumbSegment}>
                 {idx > 0 && (
                   <ChevronRight
                     size={14}
@@ -167,10 +228,48 @@ export function TopNav({ onMenuClick, unreadCount = 0 }: TopNavProps): React.JSX
 
       {/* Right: action buttons */}
       <div className={styles.right}>
-        {/* Global search */}
-        <button type="button" className={styles.iconBtn} aria-label="Search">
-          <Search size={18} strokeWidth={1.75} aria-hidden="true" />
-        </button>
+        {/* Global search — expands from icon */}
+        <div className={`${styles.searchWrapper} ${searchOpen ? styles.searchWrapperOpen : ''}`}>
+          {searchOpen && (
+            <div className={styles.searchBar}>
+              <Search
+                size={15}
+                strokeWidth={1.75}
+                className={styles.searchIcon}
+                aria-hidden="true"
+              />
+              <input
+                ref={searchRef}
+                type="search"
+                className={styles.searchInput}
+                placeholder="Search…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                aria-label="Search"
+              />
+              <button
+                type="button"
+                className={styles.searchClose}
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery('');
+                }}
+                aria-label="Close search"
+              >
+                <X size={14} strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            className={`${styles.iconBtn} ${searchOpen ? styles.iconBtnActive : ''}`}
+            aria-label="Search"
+            onClick={() => setSearchOpen((v) => !v)}
+          >
+            <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        </div>
 
         {/* Dark/light mode toggle */}
         <button
@@ -186,24 +285,54 @@ export function TopNav({ onMenuClick, unreadCount = 0 }: TopNavProps): React.JSX
           )}
         </button>
 
-        {/* Notification bell */}
-        <button
-          type="button"
-          className={styles.iconBtn}
-          aria-label={
-            unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
-              : 'Notifications'
-          }
-          onClick={() => router.push('/notifications')}
-        >
-          <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
-          {unreadCount > 0 && (
-            <span className={styles.badge} aria-hidden="true">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
+        {/* Notification bell — dropdown, not navigation */}
+        <div className={styles.dropdownWrapper} ref={notifRef}>
+          <button
+            type="button"
+            className={`${styles.iconBtn} ${notifOpen ? styles.iconBtnActive : ''}`}
+            aria-label={
+              unreadCount > 0
+                ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
+                : 'Notifications'
+            }
+            aria-haspopup="true"
+            aria-expanded={notifOpen}
+            onClick={() => setNotifOpen((v) => !v)}
+          >
+            <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className={styles.badge} aria-hidden="true">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div className={styles.notifDropdown} role="region" aria-label="Notifications">
+              <div className={styles.notifHeader}>
+                <span className={styles.notifTitle}>Notifications</span>
+                {unreadCount > 0 && <span className={styles.notifBadge}>{unreadCount} new</span>}
+              </div>
+              <div className={styles.notifList}>
+                {notifications.length === 0 ? (
+                  <p className={styles.notifEmpty}>No notifications yet.</p>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`${styles.notifItem} ${!n.read ? styles.notifItemUnread : ''}`}
+                    >
+                      <p className={styles.notifMessage}>{n.message}</p>
+                      <span className={styles.notifTime}>
+                        {new Date(n.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
         {/* User avatar + dropdown */}
         <div className={styles.dropdownWrapper} ref={dropdownRef}>

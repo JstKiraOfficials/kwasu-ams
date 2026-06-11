@@ -9,7 +9,7 @@
 .sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  background: var(--color-sidebar-bg);
+  background: var(--color-primary);
   transition: width var(--ease-base);
   overflow: hidden;
   position: relative;
@@ -35,7 +35,7 @@
   bottom: 0;
   width: var(--sidebar-w);
   z-index: 51;
-  background: var(--color-sidebar-bg);
+  background: var(--color-primary);
   animation: slideLeft var(--ease-base) both;
 }
 
