@@ -150,7 +150,7 @@ export function DeanDashboard(): ReactElement {
                             : styles.danger
                       }
                     >
-                      {d.avgRate.toFixed(1)}%
+                      {(d.avgRate ?? 0).toFixed(1)}%
                     </td>
                     <td>{d.studentCount}</td>
                   </tr>
@@ -178,7 +178,7 @@ export function DeanDashboard(): ReactElement {
                   interval={0}
                 />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`]} />
+                <Tooltip formatter={(v: number) => [`${(v ?? 0).toFixed(1)}%`]} />
                 <Bar dataKey="avgRate" radius={[4, 4, 0, 0]}>
                   {depts.map((d) => (
                     <Cell key={d.departmentId} fill={barColour(d.avgRate)} />

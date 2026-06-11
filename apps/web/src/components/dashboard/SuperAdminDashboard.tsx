@@ -207,7 +207,7 @@ export function SuperAdminDashboard(): ReactElement {
                   interval={0}
                 />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`]} />
+                <Tooltip formatter={(v: number) => [`${(v ?? 0).toFixed(1)}%`]} />
                 <Bar dataKey="avgRate" radius={[4, 4, 0, 0]}>
                   {faculties.map((f) => (
                     <Cell key={f.facultyId} fill={barColour(f.avgRate)} />

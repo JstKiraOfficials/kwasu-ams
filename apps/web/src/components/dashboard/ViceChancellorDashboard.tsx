@@ -105,7 +105,7 @@ export function ViceChancellorDashboard(): ReactElement {
       <div className={styles.heroCard} aria-label="University attendance rate">
         <div className={styles.heroLeft}>
           <span className={styles.heroLabel}>University Attendance Rate</span>
-          <span className={styles.heroValue}>{univRate.toFixed(1)}%</span>
+          <span className={styles.heroValue}>{(univRate ?? 0).toFixed(1)}%</span>
           <span
             className={`${styles.complianceBadge} ${isCompliant ? styles.compliant : styles.nonCompliant}`}
           >
@@ -160,7 +160,7 @@ export function ViceChancellorDashboard(): ReactElement {
                   interval={0}
                 />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`]} />
+                <Tooltip formatter={(v: number) => [`${(v ?? 0).toFixed(1)}%`]} />
                 <Bar dataKey="avgRate" radius={[4, 4, 0, 0]}>
                   {faculties.map((f) => (
                     <Cell key={f.facultyId} fill={barColour(f.avgRate)} />
@@ -189,7 +189,7 @@ export function ViceChancellorDashboard(): ReactElement {
                 </defs>
                 <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`]} />
+                <Tooltip formatter={(v: number) => [`${(v ?? 0).toFixed(1)}%`]} />
                 <Area
                   type="monotone"
                   dataKey="rate"

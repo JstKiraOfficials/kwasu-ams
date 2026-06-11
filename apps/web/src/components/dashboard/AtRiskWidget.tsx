@@ -95,7 +95,7 @@ export function AtRiskWidget({ students }: AtRiskWidgetProps): ReactElement {
             <span className={styles.course}>{student.courseCode}</span>
           </div>
           <div className={styles.right}>
-            <span className={styles.percentage}>{student.percentage.toFixed(1)}%</span>
+            <span className={styles.percentage}>{(student.percentage ?? 0).toFixed(1)}%</span>
             <button
               type="button"
               className={`${styles.warnBtn} ${warned.has(student.id) ? styles.warnBtnDone : ''}`}

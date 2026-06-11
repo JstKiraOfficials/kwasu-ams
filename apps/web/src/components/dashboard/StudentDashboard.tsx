@@ -103,7 +103,7 @@ export function StudentDashboard(): ReactElement {
       <section className={styles.statsGrid} aria-label="Attendance summary">
         <StatsCard
           title="Overall Attendance"
-          value={`${overallPct.toFixed(1)}%`}
+          value={`${(overallPct ?? 0).toFixed(1)}%`}
           icon={<TrendingUp size={16} />}
           variant={overallPct >= 80 ? 'success' : overallPct >= 75 ? 'warning' : 'danger'}
           index={0}

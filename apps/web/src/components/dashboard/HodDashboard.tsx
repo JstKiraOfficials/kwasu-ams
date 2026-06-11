@@ -156,7 +156,7 @@ export function HodDashboard(): ReactElement {
                         c.rate >= 80 ? styles.safe : c.rate >= 75 ? styles.warn : styles.danger
                       }
                     >
-                      {c.rate.toFixed(1)}%
+                      {(c.rate ?? 0).toFixed(1)}%
                     </td>
                     <td>
                       <span className={`${styles.trendBadge} ${styles[c.trend]}`}>
@@ -187,7 +187,7 @@ export function HodDashboard(): ReactElement {
                 <span
                   className={`${styles.badge} ${l.accountabilityPct >= 80 ? styles.safe : l.accountabilityPct >= 60 ? styles.warn : styles.danger}`}
                 >
-                  {l.accountabilityPct.toFixed(0)}%
+                  {(l.accountabilityPct ?? 0).toFixed(0)}%
                 </span>
               </div>
             ))}

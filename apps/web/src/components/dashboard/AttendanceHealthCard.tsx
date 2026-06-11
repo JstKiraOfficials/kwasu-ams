@@ -95,7 +95,7 @@ export function AttendanceHealthCard({
 
       <p className={styles.courseTitle}>{courseTitle}</p>
 
-      <div className={`${styles.percentage} ${pctClass}`}>{percentage.toFixed(1)}%</div>
+      <div className={`${styles.percentage} ${pctClass}`}>{(percentage ?? 0).toFixed(1)}%</div>
 
       <div className={styles.sessionCount}>
         {present}/{total} sessions attended
@@ -109,7 +109,7 @@ export function AttendanceHealthCard({
           aria-valuenow={percentage}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`${percentage.toFixed(1)}% attendance for ${courseCode}`}
+          aria-label={`${(percentage ?? 0).toFixed(1)}% attendance for ${courseCode}`}
         />
       </div>
     </div>

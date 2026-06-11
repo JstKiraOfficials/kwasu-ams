@@ -174,7 +174,7 @@ export function LecturerDashboard(): ReactElement {
               <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`]} />
+                <Tooltip formatter={(v: number) => [`${(v ?? 0).toFixed(1)}%`]} />
                 <Legend />
                 {courseKeys.map((code, i) => (
                   <Line
