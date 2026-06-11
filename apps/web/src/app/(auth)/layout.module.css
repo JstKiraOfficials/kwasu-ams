@@ -34,7 +34,7 @@
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: rgba(20, 20, 36, 0.72);
+  background: rgba(26, 107, 60, 0.28); /* light KWASU green tint — matches desktop overlay */
   display: block;
 }
 
@@ -55,11 +55,7 @@
 .imageOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    155deg,
-    rgba(26, 107, 60, 0.84) 0%,
-    rgba(26, 26, 46, 0.78) 100%
-  );
+  background: rgba(26, 107, 60, 0.28); /* light KWASU green tint */
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -116,11 +112,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* logo top, form middle, footer bottom */
+  justify-content: space-between;
   min-height: 100vh;
   width: 100%;
-  padding: var(--spacing-10) var(--spacing-6);
-  gap: var(--spacing-6);
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-6);
+  gap: 0;
 
   /* On mobile: transparent so the background image shows through */
   background: transparent;
@@ -135,6 +132,8 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-3);
+  /* anchored to top-left */
+  align-self: flex-start;
 }
 
 .mobileLogoImage {
@@ -155,14 +154,21 @@
 /* ── Form content container ──────────────────────────────────── */
 .formContent {
   width: 100%;
-  max-width: 420px;
+  /* full width on mobile — no max-width constraint */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-8) 0;
 }
 
 /* ── Mobile footer ───────────────────────────────────────────── */
 .mobileFooter {
   font-size: var(--font-size-xs);
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.5);
   text-align: center;
+  /* anchored to bottom */
+  align-self: center;
 }
 
 /* ══════════════════════════════════════════════════════════════
